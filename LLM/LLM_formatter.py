@@ -49,6 +49,7 @@ class LLM_formatter:
 
     def file_to_text(self, file):
         # Leggi il contenuto del file e convertilo in testo
+        content = None
         try:
             with open(file, "r") as file:
                 content = file.read()
