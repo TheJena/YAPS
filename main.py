@@ -1,7 +1,7 @@
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_formatter import LLM_formatter
 from graph.neo4j import Neo4jConnector, Neo4jFactory
-from graph.structure import create_activity
+from graph.structure import *
 from extracted_code import run_pipeline
 from graph.constants import *
 from tracking.tracking import ProvenanceTracker
@@ -44,7 +44,8 @@ session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
 run_pipeline(args=get_args(), tracker=tracker)
 
-print(tracker.changes)
+# map of all the df before and after the operations
+changes = tracker.changes
 
 current_activities = []
 current_entities = []
@@ -53,6 +54,38 @@ current_derivations = []
 current_entities_column = []
 current_relations = []
 current_relations_column = []
+
+# find the differnce of the df and create the entities
+activities_and_entities = {}  # map of the entities modified by the activity
+for act in changes.keys():
+    if act == 0:
+        continue
+    df1 = changes[act]["before"]
+    df2 = changes[act]["after"]
+    # Initialize an empty list to store the differences
+    diff_entities = []
+    # Iterate over the columns and rows to find differences
+    for col in df2.columns:
+        for idx in df2.index:
+            if idx in df2.index and col in df2.columns:
+                if idx in df1.index and col in df1.columns:
+                    old_value = df1.at[idx, col]
+                else:
+                    old_value = "Not exist"
+                new_value = df2.at[idx, col]
+                if old_value != new_value:
+                    entity = create_entity(new_value, col, idx)
+                    diff_entities.append(
+                        {
+                            "column": col,
+                            "row_index": idx,
+                            "previous_value": old_value,
+                            "new_id_entity": entity["id"],
+                        }
+                    )
+                    entity = create_entity(new_value, col, idx)
+                    current_entities.append(entity)
+    activities_and_entities[act] = diff_entities
 
 for act_name in activities_description_dict.keys():
     act_context, act_code = activities_description_dict[act_name]
@@ -66,6 +99,7 @@ neo4j.create_constraint(session=session)
 
 # Add activities, entities, derivations, and relations to Neo4j
 neo4j.add_activities(current_activities, session)
+neo4j.add_entities(current_entities)
 
 pairs = []
 for i in range(len(current_activities) - 1):
@@ -78,14 +112,13 @@ for i in range(len(current_activities) - 1):
 
 neo4j.add_next_operations(pairs)
 
-neo4j.add_entities(current_entities)
-neo4j.add_columns(current_columns)
-neo4j.add_derivations(current_derivations)
-neo4j.add_relation_entities_to_column(current_entities_column)
-neo4j.add_derivations_columns(current_derivations)
-neo4j.add_relations(current_relations)
-neo4j.add_relations_columns(current_relations_column)
 
+# neo4j.add_columns(current_columns)
+# neo4j.add_derivations(current_derivations)
+# neo4j.add_relation_entities_to_column(current_entities_column)
+# neo4j.add_derivations_columns(current_derivations)
+# neo4j.add_relations(current_relations)
+# neo4j.add_relations_columns(current_relations_column)
 
 del current_activities[:]
 del current_entities[:]

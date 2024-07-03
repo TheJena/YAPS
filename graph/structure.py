@@ -60,3 +60,29 @@ def create_activity(
         attributes.update(other_attributes)
 
     return attributes
+
+
+def create_entity(
+    value, feature_name: str, index: int, instance: str = None
+) -> Dict[str, any]:
+    """
+    Create a provenance entity.
+    Return a dictionary with the ID and the record ID of the entity.
+
+    :param value: The value of the entity.
+    :param feature_name: The feature name of the entity.
+    :param index: The index of the entity.
+    :param instance: The instance of the entity.
+    :return: A dictionary with the ID and the record ID of the entity.
+    """
+
+    entity = {
+        "id": constants.NAMESPACE_ENTITY + str(uuid.uuid4()),
+        "value": value,
+        "type": type(value).__name__,
+        "feature_name": feature_name,
+        "index": index,
+        "instance": instance or [],
+    }
+
+    return entity
