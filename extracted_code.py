@@ -64,10 +64,9 @@ def run_pipeline(args) -> None:
 
     input_path = args.dataset
 
-    # Load the dataset from the input file
     df = pd.read_csv(input_path)
 
-    # Assign names to columns if the dataset has 15 columns
+    # Assign names to columns
     if len(df.columns) == 15:
         names = [
             "age",
@@ -88,7 +87,6 @@ def run_pipeline(args) -> None:
         ]
         df.columns = names
 
-    # Perform stratified sampling if the sampling fraction is specified
     if args.frac > 0.0 and args.frac < 1.0:
         df = stratified_sample(df, args.frac)
         logger.info(
@@ -100,10 +98,10 @@ def run_pipeline(args) -> None:
             f"The dataframe has been enlarged by ({int(args.frac)} times"
         )
 
-    # Create a provenance tracker to track the data lineage
+    # Create provenance tracker
     tracker = ProvenanceTracker(save_on_neo4j=True)
 
-    # Subscribe the dataframe to the provenance tracker
+    # Subscribe dataframe
     df = tracker.subscribe(df)
 
     logger.info(f" OPERATION C0")
@@ -111,18 +109,16 @@ def run_pipeline(args) -> None:
     # Strip whitespace from object columns
     object_columns = df.select_dtypes(include=["object"]).columns.tolist()
     df[object_columns] = df[object_columns].applymap(str.strip)
-
+    tracker.analyze_changes(df)
     logger.info(f" OPERATION C1 ")
 
-    # Replace '?' with NaN values
+    # Replace '?' with NaN
     df = df.replace("?", np.nan)
-
+    tracker.analyze_changes(df)
     logger.info(f" OPERATION C2 ")
 
-    # Disable dataframe tracking temporarily
-    tracker.dataframe_tracking = False
-
-    # One-hot encode categorical columns
+    # One-hot encoding for categorical columns
+    tracker.dataframe_tracking = False  # to have the missing link for now
     categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
     for i, col in enumerate(categorical_columns):
         dummies = pd.get_dummies(df[col])
@@ -131,20 +127,21 @@ def run_pipeline(args) -> None:
         if i == len(categorical_columns) - 1:
             tracker.dataframe_tracking = True
         df = df.drop([col], axis=1)
-
+    tracker.analyze_changes(df)
     logger.info(f" OPERATION C3 - ")
 
-    # Map categorical values to numerical values
+    # Replace specific values in 'sex' and 'label' columns
     if "sex" in df.columns and "label" in df.columns:
         df = df.replace(
             {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
         )
-
+    tracker.analyze_changes(df)
     logger.info(f" OPERATION C4 -")
 
-    # Drop unnecessary columns
+    # Drop 'fnlwgt' and 'age' columns
     if "fnlwgt" in df.columns:
         df = df.drop(["fnlwgt", "age"], axis=1)
+    tracker.analyze_changes(df)
 
 
 if __name__ == "__main__":

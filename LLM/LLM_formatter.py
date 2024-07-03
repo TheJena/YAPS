@@ -32,6 +32,7 @@ class LLM_formatter:
         2. Each operation on the data frame should be separated by a single empty line.
         3. Modify just the code contained in the run_pipeline function.
         4. uncomment run_pipeline(get_args()) and delete the rest in the main block.
+        5. after each identified block add a line containing "tracker.analyze_changes(df)"
 
         Cleaning Pipeline:{pipeline_content}
 
