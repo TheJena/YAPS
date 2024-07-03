@@ -25,7 +25,7 @@ class LLM_activities_descriptor:
 
         # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
         PIPELINE_STANDARDIZER_TEMPLATE = """
-            You are an expert in data preprocessing pipelines. Return a list of name + (description of the single operations in the pipeline, python code of the operation), consider just the content of the run_pipeline function after the subscription of the dataframe. Do not include sampling subscription and column name assignment activities. Be the most detailed as possible.
+            You are an expert in data preprocessing pipelines. Return a list of name + (description of the single operations in the pipeline, python code of the operation), consider just the content of the run_pipeline function. Do not include sampling subscription and column name assignment and identification of the objects of the columns activities. Consider just the code after the subscription of the dataframe (df.subscribe()). Be the most detailed as possible.
             Return the result as a python dictionary with the operation name as key and the description as value.
             Do not refer to comments.
 

@@ -3,13 +3,9 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+from graph.logger import CustomLogger
 import subprocess
-from misc.logger import CustomLogger
-
-from prov_acquisition.prov_libraries.tracker import ProvenanceTracker
-from prov_acquisition.prov_libraries.pipeline_standardizer import (
-    PipelineStandardizer,
-)
+from tracking.tracking import ProvenanceTracker
 
 
 def get_args() -> argparse.Namespace:
@@ -59,12 +55,11 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(args) -> None:
-    logger = CustomLogger("ProvenanceTracker")
-
+def run_pipeline(args, tracker) -> None:
     input_path = args.dataset
 
     df = pd.read_csv(input_path)
+    logger = CustomLogger("Provenancetracker")
 
     # Assign names to columns
     if len(df.columns) == 15:
@@ -95,54 +90,39 @@ def run_pipeline(args) -> None:
     elif args.frac > 1.0:
         df = pd.concat([df] * int(args.frac), ignore_index=True)
         logger.info(
-            f"The dataframe has been enlarged by ({int(args.frac)} times"
+            f"The dataframe has been enlarged by ({int(args.frac)} times)"
         )
-
-    # Create provenance tracker
-    tracker = ProvenanceTracker(save_on_neo4j=True)
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
+    tracker.analyze_changes(df)
 
-    logger.info(f" OPERATION C0")
-
-    # Strip whitespace from object columns
+    # Remove leading and trailing whitespaces from object columns
     object_columns = df.select_dtypes(include=["object"]).columns.tolist()
     df[object_columns] = df[object_columns].applymap(str.strip)
     tracker.analyze_changes(df)
-    logger.info(f" OPERATION C1 ")
 
     # Replace '?' with NaN
     df = df.replace("?", np.nan)
     tracker.analyze_changes(df)
-    logger.info(f" OPERATION C2 ")
 
     # One-hot encoding for categorical columns
-    tracker.dataframe_tracking = False  # to have the missing link for now
     categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
     for i, col in enumerate(categorical_columns):
         dummies = pd.get_dummies(df[col])
         df_dummies = dummies.add_prefix(col + "_")
         df = df.join(df_dummies)
-        if i == len(categorical_columns) - 1:
-            tracker.dataframe_tracking = True
         df = df.drop([col], axis=1)
     tracker.analyze_changes(df)
-    logger.info(f" OPERATION C3 - ")
 
-    # Replace specific values in 'sex' and 'label' columns
+    # Binary encoding for sex and label columns
     if "sex" in df.columns and "label" in df.columns:
         df = df.replace(
             {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
         )
     tracker.analyze_changes(df)
-    logger.info(f" OPERATION C4 -")
 
-    # Drop 'fnlwgt' and 'age' columns
+    # Drop unnecessary columns
     if "fnlwgt" in df.columns:
         df = df.drop(["fnlwgt", "age"], axis=1)
     tracker.analyze_changes(df)
-
-
-if __name__ == "__main__":
-    run_pipeline(get_args())

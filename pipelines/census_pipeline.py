@@ -4,14 +4,9 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+from graph.logger import CustomLogger
 import subprocess
-from misc.logger import CustomLogger
-
-from prov_acquisition.prov_libraries.tracker import ProvenanceTracker
-
-from prov_acquisition.prov_libraries.pipeline_standardizer import (
-    PipelineStandardizer,
-)
+from tracking.tracking import ProvenanceTracker
 
 
 def get_args() -> argparse.Namespace:
@@ -61,12 +56,12 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(args) -> None:
-    logger = CustomLogger("ProvenanceTracker")
+def run_pipeline(args, tracker) -> None:
 
     input_path = args.dataset
 
     df = pd.read_csv(input_path)
+    logger = CustomLogger("Provenancetracker")
 
     # Assign names to columns
     if len(df.columns) == 15:
@@ -100,25 +95,14 @@ def run_pipeline(args) -> None:
             f"The dataframe has been enlarged by ({int(args.frac)} times"
         )
 
-    # Create provenance tracker
-    tracker = ProvenanceTracker(save_on_neo4j=True)
-
     # Subscribe dataframe
     df = tracker.subscribe(df)
-
-    logger.info(f" OPERATION C0")
 
     object_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
     df[object_columns] = df[object_columns].applymap(str.strip)
 
-    logger.info(f" OPERATION C1 ")
-
     df = df.replace("?", np.nan)
-
-    logger.info(f" OPERATION C2 ")
-
-    tracker.dataframe_tracking = False  # to have the missing link for now
 
     categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
@@ -129,50 +113,12 @@ def run_pipeline(args) -> None:
 
         df = df.join(df_dummies)
 
-        # Check last iteration:
-        if i == len(categorical_columns) - 1:
-            tracker.dataframe_tracking = True
-
         df = df.drop([col], axis=1)
-
-    logger.info(f" OPERATION C3 - ")
 
     if "sex" in df.columns and "label" in df.columns:
         df = df.replace(
             {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
         )
 
-    logger.info(f" OPERATION C4 -")
-
     if "fnlwgt" in df.columns:
         df = df.drop(["fnlwgt", "age"], axis=1)
-
-
-if __name__ == "__main__":
-    chatbot = PipelineStandardizer(
-        "demos/real_world_pipelines/census_pipeline.py", api_key="MY_APY_KEY"
-    )
-    standardized_pipeline = chatbot.standardize()
-    dataset_arg = get_args().dataset
-    frac_arg = get_args().frac
-    # Costruisci il comando da eseguire
-
-    # Usa l'interprete Python corrente
-    python_executable = sys.executable
-    command = [
-        python_executable,
-        standardized_pipeline,
-        "--dataset",
-        dataset_arg,
-        "--frac",
-        str(frac_arg),
-    ]
-    # Usa exec per eseguire il comando
-    try:
-        result = subprocess.run(command, check=True)
-        print("Pipeline eseguita con successo")
-    except subprocess.CalledProcessError as e:
-        print(f"Errore durante l'esecuzione della pipeline: {e}")
-    except Exception as e:
-        print(f"Errore generico: {e}")
-    # run_pipeline(get_args())

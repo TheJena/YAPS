@@ -19,13 +19,13 @@ class ProvenanceTracker:
     def analyze_changes(self, df_after):
         if not self.tracking_enabled:
             return
-        self.operation_counter += 1
         self.df_after = df_after.copy()
         self.changes[self.operation_counter] = {
             "before": self.df_before,
             "after": self.df_after,
         }
         self.df_before = self.df_after.copy()
+        self.operation_counter += 1
 
     def get_changes(self):
         return self.changes
