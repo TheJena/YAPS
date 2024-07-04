@@ -48,18 +48,31 @@ run_pipeline(args=get_args(), tracker=tracker)
 changes = tracker.changes
 
 current_activities = []
-current_entities = []
+current_entities = {}
 current_columns = []
 current_derivations = []
 current_entities_column = []
 current_relations = []
 current_relations_column = []
 
+# to create the activities find by the llm
+for act_name in activities_description_dict.keys():
+    act_context, act_code = activities_description_dict[act_name]
+    activity = create_activity(
+        function_name=act_name, context=act_context, code=act_code
+    )
+    current_activities.append(activity)
+
 # find the differnce of the df and create the entities
 activities_and_entities = {}  # map of the entities modified by the activity
+generated_entities = []
+used_entities = []
+invalidated_entities = []
+
 for act in changes.keys():
     if act == 0:
         continue
+    activity = current_activities[act - 1]
     df1 = changes[act]["before"]
     df2 = changes[act]["after"]
     # Initialize an empty list to store the differences
@@ -74,32 +87,27 @@ for act in changes.keys():
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
                 if old_value != new_value:
+                    old_entity = None
+                    if (old_value, col, idx) in current_entities.keys():
+                        old_entity = current_entities[(old_value, col, idx)]
+                    else:
+                        old_entity = create_entity(old_value, col, idx)
+                        current_entities[(old_value, col, idx)] = old_entity
                     entity = create_entity(new_value, col, idx)
-                    diff_entities.append(
-                        {
-                            "column": col,
-                            "row_index": idx,
-                            "previous_value": old_value,
-                            "new_id_entity": entity["id"],
-                        }
-                    )
-                    entity = create_entity(new_value, col, idx)
-                    current_entities.append(entity)
-    activities_and_entities[act] = diff_entities
-
-for act_name in activities_description_dict.keys():
-    act_context, act_code = activities_description_dict[act_name]
-    activity = create_activity(
-        function_name=act_name, context=act_context, code=act_code
-    )
-    current_activities.append(activity)
+                    # diff_entities.append({
+                    #     'old_id_entity': old_entity['id'],
+                    #     'new_id_entity': entity['id']
+                    # })
+                    current_entities[(new_value, col, idx)] = entity
+    # activities_and_entities[activity['id']] = diff_entities
+    # print(activities_and_entities)
 
 # Create constraints in Neo4j
 neo4j.create_constraint(session=session)
 
 # Add activities, entities, derivations, and relations to Neo4j
 neo4j.add_activities(current_activities, session)
-neo4j.add_entities(current_entities)
+neo4j.add_entities(list(current_entities.values()))
 
 pairs = []
 for i in range(len(current_activities) - 1):

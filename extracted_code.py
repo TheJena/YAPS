@@ -1,5 +1,6 @@
 import sys
 
+
 import argparse
 import pandas as pd
 import numpy as np
@@ -106,7 +107,7 @@ def run_pipeline(args, tracker) -> None:
     df = df.replace("?", np.nan)
     tracker.analyze_changes(df)
 
-    # One-hot encoding for categorical columns
+    # One-hot encode categorical columns
     categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
     for i, col in enumerate(categorical_columns):
         dummies = pd.get_dummies(df[col])
@@ -115,7 +116,7 @@ def run_pipeline(args, tracker) -> None:
         df = df.drop([col], axis=1)
     tracker.analyze_changes(df)
 
-    # Binary encoding for sex and label columns
+    # Map categorical values to numerical values
     if "sex" in df.columns and "label" in df.columns:
         df = df.replace(
             {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
