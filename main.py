@@ -1,8 +1,9 @@
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_formatter import LLM_formatter
+from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import *
-from extracted_code import run_pipeline
+
 from graph.constants import *
 from tracking.tracking import ProvenanceTracker
 import argparse
@@ -23,6 +24,9 @@ import argparse
 formatter = LLM_formatter("pipelines/census_pipeline.py", api_key="MY_APY_KEY")
 extracted_file = formatter.standardize()
 descriptor = LLM_activities_descriptor(extracted_file, api_key="MY_APY_KEY")
+used_columns_giver = LLM_activities_used_columns(api_key="MY_APY_KEY")
+
+from extracted_code import run_pipeline
 
 activities_description = descriptor.descript()
 activities_description_dict = (
@@ -62,6 +66,7 @@ activities_and_entities = {}  # map of the entities modified by the activity
 derivations = []
 current_relations = []
 for act in changes.keys():
+    used_cols = None
     generated_entities = []
     used_entities = []
     invalidated_entities = []
@@ -70,17 +75,104 @@ for act in changes.keys():
     activity = current_activities[act - 1]
     df1 = changes[act]["before"]
     df2 = changes[act]["after"]
+    activity_description, activity_code = activity["context"], activity["code"]
+    print(activity["function_name"])
+    print(df1)
+    print(df2)
+    used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+        used_columns_giver.give_columns(
+            df1, df2, activity_code, activity_description
+        )
+    )
+    print(used_cols)
     # Initialize an empty list to store the differences
     diff_entities = []
 
     # Approach working when the number of rows is the same and the number of columns increase or is the same
-    if len(df1.columns) <= len(df2.columns) and len(df1.index) == len(
-        df2.index
-    ):
+    if len(df1.columns) <= len(df2.columns):
         # Iterate over the columns and rows to find differences
+        used_col = True
+        old_entity_in_col = []
         for col in df2.columns:
+            if not used_col:
+                used_entities.extend(old_entity_in_col)
+            old_entity_in_col = []
+            used_col = False
             for idx in df2.index:
                 if idx in df1.index and col in df1.columns:
+                    old_value = df1.at[idx, col]
+                else:
+                    old_value = "Not exist"
+                new_value = df2.at[idx, col]
+                if old_value != new_value:
+                    entity = create_entity(new_value, col, idx)
+                    if old_value != "Not exist":
+                        old_entity = None
+                        if (old_value, col, idx) in current_entities.keys():
+                            old_entity = current_entities[
+                                (old_value, col, idx)
+                            ]
+                        else:
+                            old_entity = create_entity(old_value, col, idx)
+                            current_entities[(old_value, col, idx)] = (
+                                old_entity
+                            )
+                        if col in used_cols:
+                            old_entity_in_col.append(old_entity)
+                        derivations.append(
+                            {
+                                "gen": str(entity["id"]),
+                                "used": str(old_entity["id"]),
+                            }
+                        )
+                        used_entities.append(old_entity["id"])
+                        used_col = True
+                        invalidated_entities.append(old_entity["id"])
+                    generated_entities.append(entity["id"])
+                    current_entities[(new_value, col, idx)] = entity
+        if not used_cols:
+            used_entities.extend(old_entity_in_col)
+
+    # if the number of columns decrease but the number of rows is still the same
+    elif len(df1.columns) > len(df2.columns):
+        # Iterate over the columns and rows to find differences
+        unique_col_in_df1 = set(df1.columns) - set(df2.columns)
+        unique_col_in_df2 = set(df2.columns) - set(df1.columns)
+        # if the column is exclusively in the "before" dataframe
+        used_col = True
+        old_entity_in_col = []
+        for col in unique_col_in_df1:
+            if not used_col:
+                used_entities.extend(old_entity_in_col)
+            old_entity_in_col = []
+            used_col = False
+            for idx in df1.index:
+                old_value = df1.at[idx, col]
+                old_entity = None
+                if (old_value, col, idx) in current_entities.keys():
+                    old_entity = current_entities[(old_value, col, idx)]
+                else:
+                    old_entity = create_entity(old_value, col, idx)
+                    current_entities[(old_value, col, idx)] = old_entity
+                if col in used_cols:
+                    old_entity_in_col.append(old_entity)
+                invalidated_entities.append(old_entity["id"])
+                used_entities.append(old_entity["id"])
+                used_col = True
+            if not used_cols:
+                used_entities.extend(old_entity_in_col)
+        # if the column is exclusively in the "after" dataframe
+        for col in unique_col_in_df2:
+            for idx in df2.index:
+                new_value = df2.at[idx, col]
+                new_entity = create_entity(new_value, col, idx)
+                current_entities[(new_value, col, idx)] = new_entity
+                generated_entities.append(new_entity["id"])
+
+        common_col = set(df1.columns).intersection(set(df2.columns))
+        for col in common_col:
+            for idx in df2.index:
+                if idx in df1.index:
                     old_value = df1.at[idx, col]
                 else:
                     old_value = "Not exist"
@@ -108,33 +200,6 @@ for act in changes.keys():
                         invalidated_entities.append(old_entity["id"])
                     generated_entities.append(entity["id"])
                     current_entities[(new_value, col, idx)] = entity
-
-    # if the number of columns decrease but the number of rows is still the same
-    elif len(df1.columns) > len(df2.columns) and len(df1.index) == len(
-        df2.index
-    ):
-        # Iterate over the columns and rows to find differences
-        unique_col_in_df1 = set(df1.columns) - set(df2.columns)
-        unique_col_in_df2 = set(df2.columns) - set(df1.columns)
-        # if the column is exclusively in the "before" dataframe
-        for col in unique_col_in_df1:
-            for idx in df1.index:
-                old_value = df1.at[idx, col]
-                old_entity = None
-                if (old_value, col, idx) in current_entities.keys():
-                    old_entity = current_entities[(old_value, col, idx)]
-                else:
-                    old_entity = create_entity(old_value, col, idx)
-                    current_entities[(old_value, col, idx)] = old_entity
-                invalidated_entities.append(old_entity["id"])
-                used_entities.append(old_entity["id"])
-        # if the column is exclusively in the "after" dataframe
-        for col in unique_col_in_df2:
-            for idx in df2.index:
-                new_value = df2.at[idx, col]
-                new_entity = create_entity(new_value, col, idx)
-                current_entities[(new_value, col, idx)] = new_entity
-                generated_entities.append(new_entity["id"])
 
     current_relations.append(
         create_relation(

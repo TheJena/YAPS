@@ -53,9 +53,6 @@ def run_pipeline(tracker) -> None:
     # Imputation
     df = df.fillna(0)
 
-    print("imputation operation")
-    print(df)
-
     # Feature rename
     df = df.rename({"key1": "chiave1"}, axis=1)
     df = df.rename({"chiave1": "chiave01"}, axis=1)
@@ -67,20 +64,10 @@ def run_pipeline(tracker) -> None:
     # Feature transformation of column D
     df["D"] = df["D"].apply(lambda x: x * 2)
 
-    print("feature transformation operation")
-    print(df)
-
-    # Feature transformation of column key2
-    df["key2"] = df["key2"].apply(lambda x: x * 2)
-
-    print("feature transformation operation")
-    print(df)
+    df = df.groupby("A").sum()
 
     # Imputation 2
     df = df.fillna(10)
-
-    print("imputation operation")
-    print(df)
 
     # Space transformation 1
     c = "D"
@@ -88,9 +75,5 @@ def run_pipeline(tracker) -> None:
     df_dummies = dummies.add_prefix(c + "_")
     df = df.join(df_dummies)
     df = df.drop([c], axis=1)
-    print("Space Transformation operation 1")
-    print(df)
 
     df = df.drop(["B"], axis=1)
-    print("Space Transformation operation 3")
-    print(df)

@@ -1,4 +1,6 @@
 import sys
+
+
 import argparse
 import pandas as pd
 from graph.logger import CustomLogger
@@ -33,6 +35,7 @@ def stratified_sample(df, frac):
 
 
 def run_pipeline(tracker) -> None:
+
     df = pd.DataFrame(
         {
             "key1": [1, 2, 3, 4, 5],
@@ -45,58 +48,53 @@ def run_pipeline(tracker) -> None:
     logger = CustomLogger("Provenancetracker")
 
     # Subscribe dataframe
+    # Subscribe the dataframe to the tracker
     df = tracker.subscribe(df)
     tracker.analyze_changes(df)
 
     # Imputation
+    # Replace missing values with 0
     df = df.fillna(0)
-    print("Imputation operation")
-    print(df)
     tracker.analyze_changes(df)
 
     # Feature rename
+    # Rename column 'key1' to 'chiave01'
     df = df.rename({"key1": "chiave1"}, axis=1)
     df = df.rename({"chiave1": "chiave01"}, axis=1)
-    print("Feature rename operation")
-    print(df)
     tracker.analyze_changes(df)
 
+    # Drop column 'key2'
     df = df.drop(["key2"], axis=1)
-    print("Drop column operation")
-    print(df)
     tracker.analyze_changes(df)
 
+    # Add new column 'C'
     df["C"] = [0, 1, 2, 3, 4]
-    print("Add new column operation")
-    print(df)
     tracker.analyze_changes(df)
 
     # Feature transformation of column D
+    # Multiply values in column 'D' by 2
     df["D"] = df["D"].apply(lambda x: x * 2)
-    print("Feature transformation operation")
-    print(df)
     tracker.analyze_changes(df)
 
-    # Feature transformation of column key2 (not applicable since key2 is dropped)
-    # df['key2'] = df['key2'].apply(lambda x: x * 2)
+    # Groupby and sum
+    # Group the dataframe by column 'A' and perform a sum operation
+    df = df.groupby("A").sum()
+    tracker.analyze_changes(df)
 
     # Imputation 2
+    # Replace missing values with 10
     df = df.fillna(10)
-    print("Imputation operation")
-    print(df)
     tracker.analyze_changes(df)
 
     # Space transformation 1
+    # Create dummy variables for column 'D'
     c = "D"
     dummies = pd.get_dummies(df[c])
     df_dummies = dummies.add_prefix(c + "_")
     df = df.join(df_dummies)
     df = df.drop([c], axis=1)
-    print("Space Transformation operation 1")
-    print(df)
     tracker.analyze_changes(df)
 
+    # Drop column 'B'
     df = df.drop(["B"], axis=1)
-    print("Space Transformation operation 3")
-    print(df)
     tracker.analyze_changes(df)
