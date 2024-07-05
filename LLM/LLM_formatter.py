@@ -25,13 +25,15 @@ class LLM_formatter:
 
         # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
         PIPELINE_STANDARDIZER_TEMPLATE = """
-        You are an expert in data preprocessing pipelines. Add comments describing the single operations in the pipeline, be the most detailed as possible.Return your response as a complete python file, including both changed and not changed functions, import and ..
+        Add python comments describing the single existing operations in the pipeline, be the most detailed as possible.Return your response as a complete python file, including both changed and not changed functions, import and ..
+        Do not write new lines of code, just add python comments and empty lines related to the code that you read.
 
         Instructions:
         1. Each cleaning operation on the data frame should be conatined in the same block of code without empty lines.
-        2. Each operation on the data frame should be separated by a single empty line.
-        3. Modify just the code contained in the run_pipeline function.
-        4. Exclusively after the blocks after the subscribe dataframe block for each identified block add at the end, after leaving an empty line a line containing "tracker.analyze_changes(df)"
+        2. Do not write new lines of code, just add comments and empty lines.
+        3. Each operation on the data frame should be separated by a single empty line.
+        4. Consider just the code contained in the run_pipeline function.
+        5. Exclusively after the blocks after the subscribe dataframe block for each identified block add at the end, after leaving an empty line a line containing "tracker.analyze_changes(df)"
 
         Cleaning Pipeline:{pipeline_content}
 
