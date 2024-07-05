@@ -1,32 +1,8 @@
 import sys
-
-
 import argparse
 import pandas as pd
-import numpy as np
 from graph.logger import CustomLogger
-import subprocess
-from tracking.tracking import ProvenanceTracker
-
-
-def get_args() -> argparse.Namespace:
-    """
-    Parses command line arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Real worlds pipelines - Census Pipeline"
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="../../demos/real_world_pipelines/datasets/census.csv",
-        help="Relative path to the dataset file",
-    )
-    parser.add_argument(
-        "--frac", type=float, default=0.0, help="Sampling fraction [0.0 - 1.0]"
-    )
-
-    return parser.parse_args()
+import numpy as np
 
 
 def stratified_sample(df, frac):
@@ -56,74 +32,71 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(args, tracker) -> None:
-    input_path = args.dataset
-
-    df = pd.read_csv(input_path)
+def run_pipeline(tracker) -> None:
+    df = pd.DataFrame(
+        {
+            "key1": [1, 2, 3, 4, 5],
+            "key2": [0, np.nan, 2, 1, 1],
+            "A": [0, 1, 0, 3, 0],
+            "D": [0, 1, np.nan, 2, 3],
+            "B": [0, 1, 0, 3, 0],
+        }
+    )
     logger = CustomLogger("Provenancetracker")
-
-    # Assign names to columns
-    if len(df.columns) == 15:
-        names = [
-            "age",
-            "workclass",
-            "fnlwgt",
-            "education",
-            "education-num",
-            "marital-status",
-            "occupation",
-            "relationship",
-            "race",
-            "sex",
-            "capital-gain",
-            "capital-loss",
-            "hours-per-week",
-            "native-country",
-            "label",
-        ]
-        df.columns = names
-
-    if args.frac > 0.0 and args.frac < 1.0:
-        df = stratified_sample(df, args.frac)
-        logger.info(
-            f"The dataframe was stratified and sampled ({args.frac * 100}%)"
-        )
-    elif args.frac > 1.0:
-        df = pd.concat([df] * int(args.frac), ignore_index=True)
-        logger.info(
-            f"The dataframe has been enlarged by ({int(args.frac)} times)"
-        )
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
     tracker.analyze_changes(df)
 
-    # Remove leading and trailing whitespaces from object columns
-    object_columns = df.select_dtypes(include=["object"]).columns.tolist()
-    df[object_columns] = df[object_columns].applymap(str.strip)
+    # Imputation
+    df = df.fillna(0)
+    print("Imputation operation")
+    print(df)
     tracker.analyze_changes(df)
 
-    # Replace '?' with NaN
-    df = df.replace("?", np.nan)
+    # Feature rename
+    df = df.rename({"key1": "chiave1"}, axis=1)
+    df = df.rename({"chiave1": "chiave01"}, axis=1)
+    print("Feature rename operation")
+    print(df)
     tracker.analyze_changes(df)
 
-    # One-hot encode categorical columns
-    categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
-    for i, col in enumerate(categorical_columns):
-        dummies = pd.get_dummies(df[col])
-        df_dummies = dummies.add_prefix(col + "_")
-        df = df.join(df_dummies)
-        df = df.drop([col], axis=1)
+    df = df.drop(["key2"], axis=1)
+    print("Drop column operation")
+    print(df)
     tracker.analyze_changes(df)
 
-    # Map categorical values to numerical values
-    if "sex" in df.columns and "label" in df.columns:
-        df = df.replace(
-            {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
-        )
+    df["C"] = [0, 1, 2, 3, 4]
+    print("Add new column operation")
+    print(df)
     tracker.analyze_changes(df)
 
-    # Drop unnecessary columns
-    if "fnlwgt" in df.columns:
-        df = df.drop(["fnlwgt", "age"], axis=1)
+    # Feature transformation of column D
+    df["D"] = df["D"].apply(lambda x: x * 2)
+    print("Feature transformation operation")
+    print(df)
+    tracker.analyze_changes(df)
+
+    # Feature transformation of column key2 (not applicable since key2 is dropped)
+    # df['key2'] = df['key2'].apply(lambda x: x * 2)
+
+    # Imputation 2
+    df = df.fillna(10)
+    print("Imputation operation")
+    print(df)
+    tracker.analyze_changes(df)
+
+    # Space transformation 1
+    c = "D"
+    dummies = pd.get_dummies(df[c])
+    df_dummies = dummies.add_prefix(c + "_")
+    df = df.join(df_dummies)
+    df = df.drop([c], axis=1)
+    print("Space Transformation operation 1")
+    print(df)
+    tracker.analyze_changes(df)
+
+    df = df.drop(["B"], axis=1)
+    print("Space Transformation operation 3")
+    print(df)
     tracker.analyze_changes(df)
