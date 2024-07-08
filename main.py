@@ -9,42 +9,63 @@ from tracking.tracking import ProvenanceTracker
 import argparse
 
 
-# def get_args() -> argparse.Namespace:
-#     """
-#     Parses command line arguments.
-#     """
-#     parser = argparse.ArgumentParser(description="Census Pipeline")
-#     parser.add_argument("--dataset", type=str, default="datasets/census.csv",
-#                         help="Relative path to the dataset file")
-#     parser.add_argument("--frac", type=float, default=1, help="Sampling fraction [0.0 - 1.0]")
-#
-#     return parser.parse_args()
+def get_args() -> argparse.Namespace:
+    """
+    Parses command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Census Pipeline")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="datasets/census.csv",
+        help="Relative path to the dataset file",
+    )
+    parser.add_argument(
+        "--pipeline",
+        type=str,
+        default="pipelines/census_pipeline.py",
+        help="Relative path to the dataset file",
+    )
+    parser.add_argument(
+        "--frac", type=float, default=1, help="Sampling fraction [0.0 - 1.0]"
+    )
+
+    return parser.parse_args()
 
 
-formatter = LLM_formatter("pipelines/census_pipeline.py", api_key="MY_APY_KEY")
+# Standardize the structure of the file in a way that provenance is tracked
+formatter = LLM_formatter(get_args().pipeline, api_key="MY_APY_KEY")
+# Standardized file given by the LLM
 extracted_file = formatter.standardize()
 descriptor = LLM_activities_descriptor(extracted_file, api_key="MY_APY_KEY")
 used_columns_giver = LLM_activities_used_columns(api_key="MY_APY_KEY")
 
 from extracted_code import run_pipeline
 
+# description of each activity. A list of dictionaries like { "act_name" : ("description of the operation", "code of the operation")}
 activities_description = descriptor.descript()
 activities_description_dict = (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
         activities_description.replace("pipeline_operations = ", "")
     )
 )
+print(activities_description_dict)
+
+# Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
     uri="bolt://localhost", user="MY_NEO4J_USERNAME", pwd="MY_NEO4J_PASSWORD"
 )
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
+
+# running the preprocessing pipeline
 run_pipeline(tracker=tracker)
 
-# map of all the df before and after the operations
+# Dictionary of all the df before and after the operations
 changes = tracker.changes
 
+# keeping current elements on the graph supporting the creation on neo4j
 current_activities = []
 current_entities = {}
 current_columns = []
@@ -53,7 +74,7 @@ current_entities_column = []
 
 current_relations_column = []
 
-# to create the activities find by the llm
+# Create the activities found by the llm
 for act_name in activities_description_dict.keys():
     act_context, act_code = activities_description_dict[act_name]
     activity = create_activity(
@@ -101,22 +122,49 @@ for act in changes.keys():
             for idx in df2.index:
                 if idx in df1.index and col in df1.columns:
                     old_value = df1.at[idx, col]
+                elif (
+                    idx in df1.index
+                    and df2.columns.get_loc(col) < len(df1.columns)
+                    and (
+                        df1.iloc[:, df2.columns.get_loc(col)] == df2[col]
+                    ).all()
+                ):
+                    old_value = df1.iloc[idx, df2.columns.get_loc(col)]
                 else:
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
-                if old_value != new_value:
+                if (
+                    old_value != new_value
+                    or col != df1.columns[df2.columns.get_loc(col)]
+                ):
                     entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         old_entity = None
-                        if (old_value, col, idx) in current_entities.keys():
+                        if (
+                            old_value,
+                            df1.columns[df2.columns.get_loc(col)],
+                            idx,
+                        ) in current_entities.keys():
                             old_entity = current_entities[
-                                (old_value, col, idx)
+                                (
+                                    old_value,
+                                    df1.columns[df2.columns.get_loc(col)],
+                                    idx,
+                                )
                             ]
                         else:
-                            old_entity = create_entity(old_value, col, idx)
-                            current_entities[(old_value, col, idx)] = (
-                                old_entity
+                            old_entity = create_entity(
+                                old_value,
+                                df1.columns[df2.columns.get_loc(col)],
+                                idx,
                             )
+                            current_entities[
+                                (
+                                    old_value,
+                                    df1.columns[df2.columns.get_loc(col)],
+                                    idx,
+                                )
+                            ] = old_entity
                         if col in used_cols:
                             old_entity_in_col.append(old_entity)
                         derivations.append(
