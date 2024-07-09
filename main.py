@@ -97,15 +97,15 @@ for act in changes.keys():
     df1 = changes[act]["before"]
     df2 = changes[act]["after"]
     activity_description, activity_code = activity["context"], activity["code"]
-    print(activity["function_name"])
-    print(df1)
-    print(df2)
+    # print(activity['function_name'])
+    # print(df1)
+    # print(df2)
     used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
         used_columns_giver.give_columns(
             df1, df2, activity_code, activity_description
         )
     )
-    print(used_cols)
+    # print(used_cols)
     # Initialize an empty list to store the differences
     diff_entities = []
 
@@ -133,11 +133,16 @@ for act in changes.keys():
                 else:
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
+                gen = False
                 if (
                     old_value != new_value
                     or col != df1.columns[df2.columns.get_loc(col)]
                 ):
-                    entity = create_entity(new_value, col, idx)
+                    if (new_value, col, idx) in current_entities:
+                        entity = current_entities[(new_value, col, idx)]
+                    else:
+                        gen = True
+                        entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         old_entity = None
                         if (
@@ -176,8 +181,9 @@ for act in changes.keys():
                         used_entities.append(old_entity["id"])
                         used_col = True
                         invalidated_entities.append(old_entity["id"])
-                    generated_entities.append(entity["id"])
-                    current_entities[(new_value, col, idx)] = entity
+                    if gen:
+                        generated_entities.append(entity["id"])
+                        current_entities[(new_value, col, idx)] = entity
         if not used_cols:
             used_entities.extend(old_entity_in_col)
 
@@ -213,9 +219,15 @@ for act in changes.keys():
         for col in unique_col_in_df2:
             for idx in df2.index:
                 new_value = df2.at[idx, col]
-                new_entity = create_entity(new_value, col, idx)
-                current_entities[(new_value, col, idx)] = new_entity
-                generated_entities.append(new_entity["id"])
+                gen = False
+                if (new_value, col, idx) in current_entities:
+                    new_entity = current_entities[(new_value, col, idx)]
+                else:
+                    gen = True
+                    new_entity = create_entity(new_value, col, idx)
+                if gen:
+                    current_entities[(new_value, col, idx)] = new_entity
+                    generated_entities.append(new_entity["id"])
 
         common_col = set(df1.columns).intersection(set(df2.columns))
         for col in common_col:
@@ -226,7 +238,12 @@ for act in changes.keys():
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
                 if old_value != new_value:
-                    entity = create_entity(new_value, col, idx)
+                    gen = False
+                    if (new_value, col, idx) in current_entities:
+                        entity = current_entities[(new_value, col, idx)]
+                    else:
+                        gen = True
+                        entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         old_entity = None
                         if (old_value, col, idx) in current_entities.keys():
@@ -246,8 +263,9 @@ for act in changes.keys():
                         )
                         used_entities.append(old_entity["id"])
                         invalidated_entities.append(old_entity["id"])
-                    generated_entities.append(entity["id"])
-                    current_entities[(new_value, col, idx)] = entity
+                    if gen:
+                        generated_entities.append(entity["id"])
+                        current_entities[(new_value, col, idx)] = entity
 
     current_relations.append(
         create_relation(
