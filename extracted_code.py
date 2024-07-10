@@ -34,67 +34,99 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(tracker) -> None:
+def run_pipeline(tracker, frac) -> None:
 
-    df = pd.DataFrame(
-        {
-            "key1": [1, 2, 3, 4, 5],
-            "key2": [0, np.nan, 2, 1, 1],
-            "A": [0, 1, 0, 3, 0],
-            "D": [0, 1, np.nan, 2, 3],
-            "B": [0, 1, 0, 3, 0],
-        }
-    )
-    logger = CustomLogger("Provenancetracker")
+    input_path = "datasets/census.csv"
 
-    # Subscribe dataframe
-    # Subscribe the dataframe to the tracker
+    # Read the input CSV file into a pandas DataFrame
+    df = pd.read_csv(input_path)
+
+    # Assign names to columns
+    names = [
+        "age",
+        "workclass",
+        "fnlwgt",
+        "education",
+        "education-num",
+        "marital-status",
+        "occupation",
+        "relationship",
+        "race",
+        "sex",
+        "capital-gain",
+        "capital-loss",
+        "hours-per-week",
+        "native-country",
+        "label",
+    ]
+
+    # Set the column names of the DataFrame
+    df.columns = names
+
+    # Sample the DataFrame based on the fraction provided
+    if frac > 0.0 and frac < 1.0:
+        df = df.sample(frac=frac)
+    elif frac > 1.0:
+        df = pd.concat([df] * int(frac), ignore_index=True)
+
+    # Subscribe the DataFrame to the tracker
     df = tracker.subscribe(df)
+
     tracker.analyze_changes(df)
 
-    # Imputation
-    # Replace missing values with 0
-    df = df.fillna(0)
+    # Strip whitespace from categorical columns
+    columns = [
+        "workclass",
+        "education",
+        "marital-status",
+        "occupation",
+        "relationship",
+        "race",
+        "sex",
+        "native-country",
+        "label",
+    ]
+    df[columns] = df[columns].applymap(str.strip)
+
     tracker.analyze_changes(df)
 
-    # Feature rename
-    # Rename column 'key1' to 'chiave01'
-    df = df.rename({"key1": "chiave1"}, axis=1)
-    df = df.rename({"chiave1": "chiave01"}, axis=1)
+    # Replace '?' with 0
+    df = df.replace("?", 0)
+
     tracker.analyze_changes(df)
 
-    # Drop column 'key2'
-    df = df.drop(["key2"], axis=1)
+    # One-hot encode categorical columns
+    columns = [
+        "workclass",
+        "education",
+        "marital-status",
+        "occupation",
+        "relationship",
+        "race",
+        "native-country",
+    ]
+    columns = ["education"]
+    for i, col in enumerate(columns):
+        dummies = pd.get_dummies(df[col])
+        df_dummies = dummies.add_prefix(col + "_")
+        df = df.join(df_dummies)
+        df = df.drop([col], axis=1)
+
     tracker.analyze_changes(df)
 
-    # Add new column 'C'
-    df["C"] = [0, 1, 2, 3, 4]
+    # Replace categorical values with numerical values
+    df = df.replace(
+        {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
+    )
+
     tracker.analyze_changes(df)
 
-    # Feature transformation of column D
-    # Multiply values in column 'D' by 2
-    df["D"] = df["D"].apply(lambda x: x * 2)
+    # Drop the 'fnlwgt' column
+    df = df.drop(["fnlwgt"], axis=1)
+
     tracker.analyze_changes(df)
 
-    # Groupby and sum
-    # Group the dataframe by column 'A' and perform a sum operation
-    df = df.groupby("A").sum()
-    tracker.analyze_changes(df)
+    # Rename the 'hours-per-week' column to 'hw'
+    df = df.rename(columns={"hours-per-week": "hw"})
 
-    # Imputation 2
-    # Replace missing values with 10
-    df = df.fillna(10)
-    tracker.analyze_changes(df)
-
-    # Space transformation 1
-    # Create dummy variables for column 'D'
-    c = "D"
-    dummies = pd.get_dummies(df[c])
-    df_dummies = dummies.add_prefix(c + "_")
-    df = df.join(df_dummies)
-    df = df.drop([c], axis=1)
-    tracker.analyze_changes(df)
-
-    # Drop column 'B'
-    df = df.drop(["B"], axis=1)
     tracker.analyze_changes(df)

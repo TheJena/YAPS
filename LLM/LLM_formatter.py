@@ -34,6 +34,7 @@ class LLM_formatter:
         3. Each operation on the data frame should be separated by a single empty line.
         4. Consider just the code contained in the run_pipeline function.
         5. Exclusively after the blocks after the subscribe dataframe block for each identified block add at the end, after leaving an empty line a line containing "tracker.analyze_changes(df)"
+        6. Do not comment "tracker.analyze_changes(df)" lines
 
         Cleaning Pipeline:{pipeline_content}
 
