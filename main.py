@@ -49,7 +49,7 @@ activities_description_dict = (
         activities_description.replace("pipeline_operations = ", "")
     )
 )
-print(activities_description_dict)
+# print(activities_description_dict)
 
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
@@ -58,9 +58,10 @@ neo4j = Neo4jFactory.create_neo4j_queries(
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
+frac = 0.05
 
 # running the preprocessing pipeline
-run_pipeline(tracker=tracker)
+run_pipeline(tracker, frac)
 
 # Dictionary of all the df before and after the operations
 changes = tracker.changes
@@ -129,20 +130,22 @@ for act in changes.keys():
                         df1.iloc[:, df2.columns.get_loc(col)] == df2[col]
                     ).all()
                 ):
-                    old_value = df1.iloc[idx, df2.columns.get_loc(col)]
+                    old_value = df1.iloc[
+                        list(df1.index).index(idx), df2.columns.get_loc(col)
+                    ]
                 else:
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
-                gen = False
+                # gen = False
                 if (
                     old_value != new_value
                     or col != df1.columns[df2.columns.get_loc(col)]
                 ):
-                    if (new_value, col, idx) in current_entities:
-                        entity = current_entities[(new_value, col, idx)]
-                    else:
-                        gen = True
-                        entity = create_entity(new_value, col, idx)
+                    # if (new_value, col, idx) in current_entities:
+                    #     entity = current_entities[(new_value, col, idx)]
+                    # else:
+                    #     gen = True
+                    entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         old_entity = None
                         if (
@@ -181,9 +184,9 @@ for act in changes.keys():
                         used_entities.append(old_entity["id"])
                         used_col = True
                         invalidated_entities.append(old_entity["id"])
-                    if gen:
-                        generated_entities.append(entity["id"])
-                        current_entities[(new_value, col, idx)] = entity
+                    # if gen:
+                    generated_entities.append(entity["id"])
+                    current_entities[(new_value, col, idx)] = entity
         if not used_cols:
             used_entities.extend(old_entity_in_col)
 
@@ -220,14 +223,14 @@ for act in changes.keys():
             for idx in df2.index:
                 new_value = df2.at[idx, col]
                 gen = False
-                if (new_value, col, idx) in current_entities:
-                    new_entity = current_entities[(new_value, col, idx)]
-                else:
-                    gen = True
-                    new_entity = create_entity(new_value, col, idx)
-                if gen:
-                    current_entities[(new_value, col, idx)] = new_entity
-                    generated_entities.append(new_entity["id"])
+                # if (new_value, col, idx) in current_entities:
+                #     new_entity = current_entities[(new_value, col, idx)]
+                # else:
+                #     gen = True
+                new_entity = create_entity(new_value, col, idx)
+                # if gen:
+                current_entities[(new_value, col, idx)] = new_entity
+                generated_entities.append(new_entity["id"])
 
         common_col = set(df1.columns).intersection(set(df2.columns))
         for col in common_col:
@@ -238,12 +241,12 @@ for act in changes.keys():
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
                 if old_value != new_value:
-                    gen = False
+                    # gen = False
                     if (new_value, col, idx) in current_entities:
-                        entity = current_entities[(new_value, col, idx)]
-                    else:
-                        gen = True
-                        entity = create_entity(new_value, col, idx)
+                        continue
+                    # else:
+                    #     gen = True
+                    entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         old_entity = None
                         if (old_value, col, idx) in current_entities.keys():
@@ -263,9 +266,9 @@ for act in changes.keys():
                         )
                         used_entities.append(old_entity["id"])
                         invalidated_entities.append(old_entity["id"])
-                    if gen:
-                        generated_entities.append(entity["id"])
-                        current_entities[(new_value, col, idx)] = entity
+                    # if gen:
+                    generated_entities.append(entity["id"])
+                    current_entities[(new_value, col, idx)] = entity
 
     current_relations.append(
         create_relation(
