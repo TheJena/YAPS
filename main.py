@@ -17,13 +17,13 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         type=str,
-        default="datasets/census.csv",
+        default="datasets/generated_dataset.csv",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/census_pipeline.py",
+        default="pipelines/orders_pipeline.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
@@ -58,7 +58,7 @@ neo4j = Neo4jFactory.create_neo4j_queries(
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
-frac = 0.05
+frac = 1
 
 # running the preprocessing pipeline
 run_pipeline(tracker, frac)
@@ -127,8 +127,9 @@ for act in changes.keys():
                     idx in df1.index
                     and df2.columns.get_loc(col) < len(df1.columns)
                     and (
-                        df1.iloc[:, df2.columns.get_loc(col)] == df2[col]
-                    ).all()
+                        list(df1.iloc[:, df2.columns.get_loc(col)])
+                        == list(df2[col])
+                    )
                 ):
                     old_value = df1.iloc[
                         list(df1.index).index(idx), df2.columns.get_loc(col)
