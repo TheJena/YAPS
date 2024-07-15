@@ -69,11 +69,9 @@ changes = tracker.changes
 # keeping current elements on the graph supporting the creation on neo4j
 current_activities = []
 current_entities = {}
-current_columns = []
+current_columns = {}
 current_derivations = []
 current_entities_column = []
-
-current_relations_column = []
 
 # Create the activities found by the llm
 for act_name in activities_description_dict.keys():
@@ -86,12 +84,18 @@ for act_name in activities_description_dict.keys():
 # find the differnce of the df and create the entities
 activities_and_entities = {}  # map of the entities modified by the activity
 derivations = []
+derivations_column = []
 current_relations = []
+current_relations_column = []
+current_columns_to_entities = {}
 for act in changes.keys():
     used_cols = None
     generated_entities = []
     used_entities = []
     invalidated_entities = []
+    generated_columns = []
+    used_columns = []
+    invalidated_columns = []
     if act == 0:
         continue
     activity = current_activities[act - 1]
@@ -120,7 +124,9 @@ for act in changes.keys():
                 used_entities.extend(old_entity_in_col)
             old_entity_in_col = []
             used_col = False
+            new_column = None
             for idx in df2.index:
+                old_col_name = col
                 if idx in df1.index and col in df1.columns:
                     old_value = df1.at[idx, col]
                 elif (
@@ -134,6 +140,7 @@ for act in changes.keys():
                     old_value = df1.iloc[
                         list(df1.index).index(idx), df2.columns.get_loc(col)
                     ]
+                    old_col_name = df1.columns[df2.columns.get_loc(col)]
                 else:
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
@@ -142,12 +149,45 @@ for act in changes.keys():
                     old_value != new_value
                     or col != df1.columns[df2.columns.get_loc(col)]
                 ):
-                    # if (new_value, col, idx) in current_entities:
-                    #     entity = current_entities[(new_value, col, idx)]
-                    # else:
-                    #     gen = True
+                    # control the column already exist or create it
+                    val_col = str(df2[col].tolist())
+                    idx_col = str(df2.index.tolist())
+                    if (val_col, idx_col, col) not in current_columns.keys():
+                        new_column = create_column(val_col, idx_col, col)
+                        generated_columns.append(new_column["id"])
+                        current_columns[(val_col, idx_col, col)] = new_column
+                        current_columns_to_entities[new_column["id"]] = []
                     entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
+                        # same control but for the before df, to get the used columns
+                        old_column = None
+                        val_old_col = str(df1[old_col_name].tolist())
+                        idx_old_col = str(df1.index.tolist())
+                        if (
+                            val_old_col,
+                            idx_old_col,
+                            old_col_name,
+                        ) not in current_columns.keys():
+                            old_column = create_column(
+                                val_old_col, idx_old_col, old_col_name
+                            )
+                            current_columns[
+                                (val_old_col, idx_old_col, old_col_name)
+                            ] = old_column
+                            current_columns_to_entities[old_column["id"]] = []
+                        else:
+                            old_column = current_columns[
+                                (val_old_col, idx_old_col, old_col_name)
+                            ]
+                        if new_column and new_column["id"] != old_column["id"]:
+                            derivations_column.append(
+                                {
+                                    "gen": str(new_column["id"]),
+                                    "used": str(old_column["id"]),
+                                }
+                            )
+                        used_columns.append(old_column["id"])
+                        invalidated_columns.append(old_column["id"])
                         old_entity = None
                         if (
                             old_value,
@@ -185,9 +225,15 @@ for act in changes.keys():
                         used_entities.append(old_entity["id"])
                         used_col = True
                         invalidated_entities.append(old_entity["id"])
+                        current_columns_to_entities[old_column["id"]].append(
+                            old_entity["id"]
+                        )
                     # if gen:
                     generated_entities.append(entity["id"])
                     current_entities[(new_value, col, idx)] = entity
+                    current_columns_to_entities[new_column["id"]].append(
+                        entity["id"]
+                    )
         if not used_cols:
             used_entities.extend(old_entity_in_col)
 
@@ -200,6 +246,18 @@ for act in changes.keys():
         used_col = True
         old_entity_in_col = []
         for col in unique_col_in_df1:
+            # control il the column already exist or create it
+            val_col = str(df1[col].tolist())
+            idx_col = str(df1.index.tolist())
+            new_column = None
+            if (val_col, idx_col, col) not in current_columns.keys():
+                new_column = create_column(val_col, idx_col, col)
+                current_columns[(val_col, idx_col, col)] = new_column
+                current_columns_to_entities[new_column["id"]] = []
+            else:
+                new_column = current_columns[(val_col, idx_col, col)]
+            used_columns.append(new_column["id"])
+            invalidated_columns.append(new_column["id"])
             if not used_col:
                 used_entities.extend(old_entity_in_col)
             old_entity_in_col = []
@@ -216,11 +274,22 @@ for act in changes.keys():
                     old_entity_in_col.append(old_entity)
                 invalidated_entities.append(old_entity["id"])
                 used_entities.append(old_entity["id"])
+                current_columns_to_entities[new_column["id"]].append(
+                    old_entity["id"]
+                )
                 used_col = True
             if not used_cols:
                 used_entities.extend(old_entity_in_col)
         # if the column is exclusively in the "after" dataframe
         for col in unique_col_in_df2:
+            # control il the column already exist or create it
+            val_col = str(df2[col].tolist())
+            idx_col = str(df2.index.tolist())
+            if (val_col, idx_col, col) not in current_columns.keys():
+                new_column = create_column(val_col, idx_col, col)
+                generated_columns.append(new_column["id"])
+                current_columns[(val_col, idx_col, col)] = new_column
+                current_columns_to_entities[new_column["id"]] = []
             for idx in df2.index:
                 new_value = df2.at[idx, col]
                 gen = False
@@ -232,9 +301,13 @@ for act in changes.keys():
                 # if gen:
                 current_entities[(new_value, col, idx)] = new_entity
                 generated_entities.append(new_entity["id"])
+                current_columns_to_entities[new_column["id"]].append(
+                    new_entity["id"]
+                )
 
         common_col = set(df1.columns).intersection(set(df2.columns))
         for col in common_col:
+            new_column = None
             for idx in df2.index:
                 if idx in df1.index:
                     old_value = df1.at[idx, col]
@@ -242,13 +315,46 @@ for act in changes.keys():
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
                 if old_value != new_value:
-                    # gen = False
                     if (new_value, col, idx) in current_entities:
                         continue
-                    # else:
-                    #     gen = True
-                    entity = create_entity(new_value, col, idx)
+                    # control il the column already exist or create it
+                    val_col = str(df2[col].tolist())
+                    idx_col = str(df2.index.tolist())
+                    if (val_col, idx_col, col) not in current_columns.keys():
+                        new_column = create_column(val_col, idx_col, col)
+                        generated_columns.append(new_column["id"])
+                        current_columns[(val_col, idx_col, col)] = new_column
+                        current_columns_to_entities[new_column["id"]] = []
                     if old_value != "Not exist":
+                        # same control but for the before df, to get the used columns
+                        old_column = None
+                        val_old_col = str(df1[col].tolist())
+                        idx_old_col = str(df1.index.tolist())
+                        if (
+                            val_old_col,
+                            idx_old_col,
+                            col,
+                        ) not in current_columns.keys():
+                            old_column = create_column(
+                                val_old_col, idx_old_col, col
+                            )
+                            current_columns[
+                                (val_old_col, idx_old_col, col)
+                            ] = old_column
+                            current_columns_to_entities[old_column["id"]] = []
+                        else:
+                            old_column = current_columns[
+                                (val_old_col, idx_old_col, col)
+                            ]
+                        if new_column and new_column["id"] != old_column["id"]:
+                            derivations_column.append(
+                                {
+                                    "gen": str(new_column["id"]),
+                                    "used": str(old_column["id"]),
+                                }
+                            )
+                        used_columns.append(old_column["id"])
+                        invalidated_columns.append(old_column["id"])
                         old_entity = None
                         if (old_value, col, idx) in current_entities.keys():
                             old_entity = current_entities[
@@ -267,10 +373,25 @@ for act in changes.keys():
                         )
                         used_entities.append(old_entity["id"])
                         invalidated_entities.append(old_entity["id"])
+                        current_columns_to_entities[old_column["id"]].append(
+                            old_entity["id"]
+                        )
                     # if gen:
                     generated_entities.append(entity["id"])
                     current_entities[(new_value, col, idx)] = entity
+                    current_columns_to_entities[new_column["id"]].append(
+                        entity["id"]
+                    )
 
+    current_relations_column.append(
+        create_relation_column(
+            activity["id"],
+            generated_columns,
+            used_columns,
+            invalidated_columns,
+            same=False,
+        )
+    )
     current_relations.append(
         create_relation(
             activity["id"],
@@ -290,8 +411,19 @@ neo4j.create_constraint(session=session)
 # Add activities, entities, derivations, and relations to the Neo4j Graph
 neo4j.add_activities(current_activities, session)
 neo4j.add_entities(list(current_entities.values()))
+neo4j.add_columns(list(current_columns.values()))
 neo4j.add_derivations(derivations)
 neo4j.add_relations(current_relations)
+neo4j.add_relations_columns(current_relations_column)
+neo4j.add_derivations_columns(derivations_column)
+
+relations = []
+for act in current_columns_to_entities.keys():
+    relation = []
+    relation.append(act)
+    relation.append(current_columns_to_entities[act])
+    relations.append(relation)
+neo4j.add_relation_entities_to_column(relations)
 
 pairs = []
 for i in range(len(current_activities) - 1):
@@ -314,11 +446,12 @@ neo4j.add_next_operations(pairs)
 
 del current_activities[:]
 del current_entities
-del current_columns[:]
+del current_columns
 del current_derivations[:]
 del current_entities_column[:]
 del current_relations[:]
 del current_relations_column[:]
+del current_columns_to_entities
 
 
 session.close()
