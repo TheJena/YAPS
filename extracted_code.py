@@ -52,41 +52,34 @@ def run_pipeline(tracker, frac) -> None:
 
     # Subscribe the DataFrame to the tracker
     df = tracker.subscribe(df)
-
     tracker.analyze_changes(df)
 
     # Drop rows with missing values
-    # Remove rows that contain any NaN values
+    # Remove rows that contain missing values to ensure data consistency
     df = df.dropna()
-
     tracker.analyze_changes(df)
 
     # Separate features and target variable
-    # Split the DataFrame into features (all columns except the last) and target variable (last column)
+    # Split the DataFrame into features and target variable for further processing
     df = df.iloc[:, :-1]
     y = df.iloc[:, -1]
 
-    tracker.analyze_changes(df)
-
     # Impute missing values in the numerical columns
-    # Replace NaN values in columns 1 and 2 with the mean of the respective columns
+    # Replace missing values in numerical columns with the mean of the respective column
     imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
     df.iloc[:, 1:3] = imputer.fit_transform(df.iloc[:, 1:3])
-
     tracker.analyze_changes(df)
 
     # Apply OneHotEncoder to the first column
-    # Convert the first column into a one-hot encoded format
+    # Convert categorical values in the first column into numerical features using OneHotEncoder
     ct = ColumnTransformer(
         transformers=[("encoder", OneHotEncoder(), [0])],
         remainder="passthrough",
     )
     df = pd.DataFrame(ct.fit_transform(df))
-
     tracker.analyze_changes(df)
 
     # Ensure column names are maintained or regenerated after transformation
     # Assign new column names to the transformed DataFrame
     df.columns = [f"feature_{i}" for i in range(df.shape[1])]
-
     tracker.analyze_changes(df)
