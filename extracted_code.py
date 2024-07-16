@@ -52,34 +52,40 @@ def run_pipeline(tracker, frac) -> None:
 
     # Subscribe the DataFrame to the tracker
     df = tracker.subscribe(df)
+
     tracker.analyze_changes(df)
 
     # Drop rows with missing values
-    # Remove rows that contain missing values to ensure data consistency
+    # This operation removes any rows that contain missing or null values
     df = df.dropna()
+
     tracker.analyze_changes(df)
 
     # Separate features and target variable
-    # Split the DataFrame into features and target variable for further processing
+    # This operation separates the features from the target variable by selecting all columns except the last one
     df = df.iloc[:, :-1]
-    y = df.iloc[:, -1]
+
+    tracker.analyze_changes(df)
 
     # Impute missing values in the numerical columns
-    # Replace missing values in numerical columns with the mean of the respective column
+    # This operation imputes missing values in the numerical columns (assuming columns 1 and 2 are numerical) using the mean strategy
     imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
     df.iloc[:, 1:3] = imputer.fit_transform(df.iloc[:, 1:3])
+
     tracker.analyze_changes(df)
 
     # Apply OneHotEncoder to the first column
-    # Convert categorical values in the first column into numerical features using OneHotEncoder
+    # This operation applies OneHotEncoder to the first column (assuming it is categorical)
     ct = ColumnTransformer(
         transformers=[("encoder", OneHotEncoder(), [0])],
         remainder="passthrough",
     )
     df = pd.DataFrame(ct.fit_transform(df))
+
     tracker.analyze_changes(df)
 
     # Ensure column names are maintained or regenerated after transformation
-    # Assign new column names to the transformed DataFrame
+    # This operation ensures that the column names are maintained or regenerated after the transformation
     df.columns = [f"feature_{i}" for i in range(df.shape[1])]
+
     tracker.analyze_changes(df)
