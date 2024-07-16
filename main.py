@@ -3,6 +3,7 @@ from LLM.LLM_formatter import LLM_formatter
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import *
+from utils import *
 
 from graph.constants import *
 from tracking.tracking import ProvenanceTracker
@@ -28,6 +29,13 @@ def get_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--frac", type=float, default=1, help="Sampling fraction [0.0 - 1.0]"
+    )
+
+    parser.add_argument(
+        "--granularity_level",
+        type=int,
+        default=3,
+        help="Granularity level: 1, 2 or 3",
     )
 
     return parser.parse_args()
@@ -73,6 +81,8 @@ current_columns = {}
 current_derivations = []
 current_entities_column = []
 
+entities_to_keep = []
+
 # Create the activities found by the llm
 for act_name in activities_description_dict.keys():
     act_context, act_code = activities_description_dict[act_name]
@@ -101,6 +111,7 @@ for act in changes.keys():
     activity = current_activities[act - 1]
     df1 = changes[act]["before"]
     df2 = changes[act]["after"]
+
     activity_description, activity_code = activity["context"], activity["code"]
     # print(activity['function_name'])
     # print(df1)
@@ -119,6 +130,7 @@ for act in changes.keys():
         # Iterate over the columns and rows to find differences
         used_col = True
         old_entity_in_col = []
+        unique_rows_in_df1 = set(df1.index) - set(df2.index)
         for col in df2.columns:
             if not used_col:
                 used_entities.extend(old_entity_in_col)
@@ -234,6 +246,32 @@ for act in changes.keys():
                     current_columns_to_entities[new_column["id"]].append(
                         entity["id"]
                     )
+
+            for idx in unique_rows_in_df1:
+                if idx in df1.index and col in df1.columns:
+                    val_col = str(df1[col].tolist())
+                    idx_col = str(df1.index.tolist())
+                    if (val_col, idx_col, col) not in current_columns.keys():
+                        old_column = create_column(val_col, idx_col, col)
+                        current_columns[(val_col, idx_col, col)] = old_column
+                        current_columns_to_entities[old_column["id"]] = []
+                    else:
+                        old_column = current_columns[(val_col, idx_col, col)]
+                    old_value = df1.at[idx, col]
+                    old_entity = create_entity(
+                        old_value, df1.columns[df2.columns.get_loc(col)], idx
+                    )
+                    current_entities[
+                        (old_value, df1.columns[df2.columns.get_loc(col)], idx)
+                    ] = old_entity
+                    current_columns[(val_col, idx_col, col)] = old_column
+                    used_entities.append(old_entity["id"])
+                    used_col = True
+                    invalidated_entities.append(old_entity["id"])
+                    current_columns_to_entities[old_column["id"]].append(
+                        old_entity["id"]
+                    )
+
         if not used_cols:
             used_entities.extend(old_entity_in_col)
 
@@ -383,6 +421,23 @@ for act in changes.keys():
                         entity["id"]
                     )
 
+    if get_args().granularity_level == 1 or get_args().granularity_level == 2:
+        gen_element = keep_random_element_in_place(generated_entities)
+        inv_elem = None
+        if gen_element:
+            entities_to_keep.append(gen_element)
+        used_elem = keep_random_element_in_place(used_entities)
+        if used_elem:
+            if used_elem in invalidated_entities:
+                invalidated_entities.clear()
+                invalidated_entities.append(used_elem)
+            entities_to_keep.append(used_elem)
+        else:
+            inv_elem = keep_random_element_in_place(invalidated_entities)
+
+        if inv_elem:
+            entities_to_keep.append(inv_elem)
+
     current_relations_column.append(
         create_relation_column(
             activity["id"],
@@ -410,7 +465,15 @@ neo4j.create_constraint(session=session)
 
 # Add activities, entities, derivations, and relations to the Neo4j Graph
 neo4j.add_activities(current_activities, session)
-neo4j.add_entities(list(current_entities.values()))
+if get_args().granularity_level == 1:
+    filtered_list = [
+        entity
+        for entity in current_entities.values()
+        if entity["id"] in entities_to_keep
+    ]
+    neo4j.add_entities(filtered_list)
+else:
+    neo4j.add_entities(list(current_entities.values()))
 neo4j.add_columns(list(current_columns.values()))
 neo4j.add_derivations(derivations)
 neo4j.add_relations(current_relations)

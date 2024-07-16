@@ -56,7 +56,6 @@ def run_pipeline(tracker, frac) -> None:
 
     # Separate features and target variable
     df = df.iloc[:, :-1]
-    y = df.iloc[:, -1]
 
     # Impute missing values in the numerical columns (assuming columns 1 and 2 are numerical)
     imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
