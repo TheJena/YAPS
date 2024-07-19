@@ -36,6 +36,37 @@ class LLM_formatter:
         5. Exclusively after the blocks after the subscribe dataframe block for each identified block add at the end, after leaving an empty line a line containing "tracker.analyze_changes(df)"
         6. Do not comment "tracker.analyze_changes(df)" lines
 
+        example:
+        pipeline:
+        #replace
+        df = df.replace('?', 0)
+
+
+        columns = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'native-country']
+        columns = ['education']
+        for i, col in enumerate(columns):
+            dummies = pd.get_dummies(df[col])
+            df_dummies = dummies.add_prefix(col + '_')
+            df = df.join(df_dummies)
+            df = df.drop([col], axis=1)
+
+
+        response:
+        # Replace '?' with 0
+        df = df.replace('?', 0)
+        tracker.analyze_changes(df)
+
+        # One-hot encode categorical columns
+        columns = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'native-country']
+        columns = ['education']
+        for i, col in enumerate(columns):
+            dummies = pd.get_dummies(df[col])
+            df_dummies = dummies.add_prefix(col + '_')
+            df = df.join(df_dummies)
+            df = df.drop([col], axis=1)
+        tracker.analyze_changes(df)
+
+
         Cleaning Pipeline:{pipeline_content}
 
         Question: {question}

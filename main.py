@@ -13,19 +13,19 @@ import argparse
 
 def get_args() -> argparse.Namespace:
     """
-    Parses command line arguments.
+    Parses command line arguments
     """
     parser = argparse.ArgumentParser(description="Census Pipeline")
     parser.add_argument(
         "--dataset",
         type=str,
-        default="datasets/generated_dataset.csv",
+        default="datasets/census.csv",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/orders_pipeline.py",
+        default="pipelines/census_pipeline.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
@@ -34,7 +34,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--granularity_level",
         type=int,
-        default=3,
+        default=2,
         help="Granularity level: 1, 2 or 3",
     )
     parser.add_argument(
@@ -72,7 +72,7 @@ neo4j = Neo4jFactory.create_neo4j_queries(
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
-frac = 1
+frac = 0.05
 
 # running the preprocessing pipeline
 run_pipeline(tracker, frac)
