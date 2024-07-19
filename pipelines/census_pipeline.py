@@ -86,15 +86,6 @@ def run_pipeline(tracker, frac) -> None:
     # replace
     df = df.replace("?", 0)
 
-    columns = [
-        "workclass",
-        "education",
-        "marital-status",
-        "occupation",
-        "relationship",
-        "race",
-        "native-country",
-    ]
     columns = ["education"]
     for i, col in enumerate(columns):
         dummies = pd.get_dummies(df[col])
