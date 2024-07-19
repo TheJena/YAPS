@@ -56,26 +56,26 @@ def run_pipeline(tracker, frac) -> None:
     tracker.analyze_changes(df)
 
     # Drop rows with missing values
-    # This operation removes any rows that contain missing or null values
+    # Remove rows that contain any NaN values
     df = df.dropna()
 
     tracker.analyze_changes(df)
 
     # Separate features and target variable
-    # This operation separates the features from the target variable by selecting all columns except the last one
+    # Select all columns except the last one (assuming it's the target variable)
     df = df.iloc[:, :-1]
 
     tracker.analyze_changes(df)
 
     # Impute missing values in the numerical columns
-    # This operation imputes missing values in the numerical columns (assuming columns 1 and 2 are numerical) using the mean strategy
+    # Assuming columns 1 and 2 are numerical, replace NaN values with the mean
     imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
     df.iloc[:, 1:3] = imputer.fit_transform(df.iloc[:, 1:3])
 
     tracker.analyze_changes(df)
 
     # Apply OneHotEncoder to the first column
-    # This operation applies OneHotEncoder to the first column (assuming it is categorical)
+    # Assuming the first column is categorical, apply one-hot encoding
     ct = ColumnTransformer(
         transformers=[("encoder", OneHotEncoder(), [0])],
         remainder="passthrough",
@@ -85,7 +85,7 @@ def run_pipeline(tracker, frac) -> None:
     tracker.analyze_changes(df)
 
     # Ensure column names are maintained or regenerated after transformation
-    # This operation ensures that the column names are maintained or regenerated after the transformation
+    # Assign new column names to the transformed DataFrame
     df.columns = [f"feature_{i}" for i in range(df.shape[1])]
 
     tracker.analyze_changes(df)
