@@ -19,13 +19,13 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         type=str,
-        default="datasets/census.csv",
+        default="datasets/generated_dataset.csv",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/census_pipeline.py",
+        default="pipelines/orders_pipeline.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
@@ -34,13 +34,13 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--granularity_level",
         type=int,
-        default=2,
+        default=3,
         help="Granularity level: 1, 2 or 3",
     )
     parser.add_argument(
         "--entity_type_level",
         type=int,
-        default=1,
+        default=2,
         help="Entity level: 1 for entities and columns and 2 for columns",
     )
 
@@ -72,10 +72,9 @@ neo4j = Neo4jFactory.create_neo4j_queries(
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
-frac = 0.05
 
 # running the preprocessing pipeline
-run_pipeline(tracker, frac)
+run_pipeline(get_args(), tracker)
 
 # Dictionary of all the df before and after the operations
 changes = tracker.changes

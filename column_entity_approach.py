@@ -4,6 +4,15 @@ from graph.structure import *
 from utils import *
 from graph.constants import *
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
+import math
+
+
+def is_number(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
 
 def column_entitiy_vision(changes, current_activities, args):
@@ -47,6 +56,7 @@ def column_entitiy_vision(changes, current_activities, args):
                 df1, df2, activity_code, activity_description
             )
         )
+        # print(used_cols)
 
         # #Approach working when the number of rows is the same and the number of columns increase or is the same
         # if len(df1.columns) <= len(df2.columns):
@@ -54,8 +64,6 @@ def column_entitiy_vision(changes, current_activities, args):
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)
         # if the column is exclusively in the "before" dataframe
-        used_col = True
-        old_entity_in_col = []
         unique_df1_col = []
         for col in unique_col_in_df1:
             # control il the column already exist or create it
@@ -71,10 +79,6 @@ def column_entitiy_vision(changes, current_activities, args):
             unique_df1_col.append(new_column)
             used_columns.append(new_column["id"])
             invalidated_columns.append(new_column["id"])
-            if not used_col:
-                used_entities.extend(old_entity_in_col)
-            old_entity_in_col = []
-            used_col = False
             for idx in df1.index:
                 old_value = df1.at[idx, col]
                 old_entity = None
@@ -83,16 +87,11 @@ def column_entitiy_vision(changes, current_activities, args):
                 else:
                     old_entity = create_entity(old_value, col, idx)
                     current_entities[(old_value, col, idx)] = old_entity
-                if col in used_cols:
-                    old_entity_in_col.append(old_entity)
                 invalidated_entities.append(old_entity["id"])
                 used_entities.append(old_entity["id"])
                 current_columns_to_entities[new_column["id"]].append(
                     old_entity["id"]
                 )
-                used_col = True
-            if not used_cols:
-                used_entities.extend(old_entity_in_col)
         # if the column is exclusively in the "after" dataframe
         for col in unique_col_in_df2:
             # control il the column already exist or create it
@@ -138,13 +137,36 @@ def column_entitiy_vision(changes, current_activities, args):
         common_col = set(df1.columns).intersection(set(df2.columns))
         for col in common_col:
             new_column = None
+
+            # verify if a column is used and in that case add it to used columns
+            used_column = None
+            if col in used_cols:
+                val_col = str(df1[col].tolist())
+                idx_col = str(df1.index.tolist())
+                if (val_col, idx_col, col) not in current_columns.keys():
+                    used_column = create_column(val_col, idx_col, col)
+                    current_columns[(val_col, idx_col, col)] = used_column
+                    current_columns_to_entities[used_column["id"]] = []
+                else:
+                    used_column = current_columns[(val_col, idx_col, col)]
+                if used_column:
+                    used_columns.append(used_column["id"])
+
             for idx in df2.index:
                 if idx in df1.index:
                     old_value = df1.at[idx, col]
                 else:
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
+
                 if old_value != new_value:
+                    if (
+                        is_number(old_value)
+                        and is_number(new_value)
+                        and math.isnan(new_value)
+                        and math.isnan(old_value)
+                    ):
+                        continue
                     if (new_value, col, idx) in current_entities:
                         continue
                     # control il the column already exist or create it
@@ -157,6 +179,7 @@ def column_entitiy_vision(changes, current_activities, args):
                         current_columns_to_entities[new_column["id"]] = []
                     else:
                         new_column = current_columns[(val_col, idx_col, col)]
+
                     entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
                         # same control but for the before df, to get the used columns
@@ -273,14 +296,10 @@ def column_entitiy_vision(changes, current_activities, args):
                                 }
                             )
                         used_entities.append(old_entity["id"])
-                        used_col = True
                         invalidated_entities.append(old_entity["id"])
                         current_columns_to_entities[old_column["id"]].append(
                             old_entity["id"]
                         )
-
-        if not used_cols:
-            used_entities.extend(old_entity_in_col)
 
         if args.granularity_level == 1 or args.granularity_level == 2:
             gen_element = keep_random_element_in_place(generated_entities)
