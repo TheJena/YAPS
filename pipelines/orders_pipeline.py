@@ -37,16 +37,14 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(tracker, frac) -> None:
+def run_pipeline(args, tracker) -> None:
 
-    input_path = "datasets/generated_dataset.csv"
+    input_path = args.dataset
 
     df = pd.read_csv(input_path)
 
-    if frac > 0.0 and frac < 1.0:
-        df = df.sample(frac=frac)
-    elif frac > 1.0:
-        df = pd.concat([df] * int(frac), ignore_index=True)
+    if args.frac != 0.0:
+        df = df.sample(frac=args.frac)
 
     # Subscribe dataframe
     df = tracker.subscribe(df)

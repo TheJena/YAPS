@@ -5,6 +5,9 @@ import argparse
 import pandas as pd
 from graph.logger import CustomLogger
 import numpy as np
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
 
 
 def stratified_sample(df, frac):
@@ -34,80 +37,46 @@ def stratified_sample(df, frac):
     return sampled_df
 
 
-def run_pipeline(tracker, frac) -> None:
+def run_pipeline(args, tracker) -> None:
 
-    input_path = "datasets/census.csv"
+    input_path = args.dataset
 
     df = pd.read_csv(input_path)
 
-    # Assign names to columns
-    names = [
-        "age",
-        "workclass",
-        "fnlwgt",
-        "education",
-        "education-num",
-        "marital-status",
-        "occupation",
-        "relationship",
-        "race",
-        "sex",
-        "capital-gain",
-        "capital-loss",
-        "hours-per-week",
-        "native-country",
-        "label",
-    ]
-
-    df.columns = names
-
-    if frac > 0.0 and frac < 1.0:
-        df = df.sample(frac=frac)
-    elif frac > 1.0:
-        df = pd.concat([df] * int(frac), ignore_index=True)
+    if args.frac != 0.0:
+        # Randomly sample the dataset
+        df = df.sample(frac=args.frac)
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
     tracker.analyze_changes(df)
 
-    # Strip whitespace from categorical columns
-    columns = [
-        "workclass",
-        "education",
-        "marital-status",
-        "occupation",
-        "relationship",
-        "race",
-        "sex",
-        "native-country",
-        "label",
-    ]
-    df[columns] = df[columns].applymap(str.strip)
+    # Drop rows with missing values
+    # Remove rows with any missing values
+    df = df.dropna()
     tracker.analyze_changes(df)
 
-    # Replace '?' with 0
-    df = df.replace("?", 0)
+    # Separate features and target variable
+    # Select all columns except the last one
+    df = df.iloc[:, :-1]
     tracker.analyze_changes(df)
 
-    # One-hot encode categorical columns
-    columns = ["education"]
-    for i, col in enumerate(columns):
-        dummies = pd.get_dummies(df[col])
-        df_dummies = dummies.add_prefix(col + "_")
-        df = df.join(df_dummies)
-        df = df.drop([col], axis=1)
+    # Impute missing values in the numerical columns (assuming columns 1 and 2 are numerical)
+    # Replace missing values with the mean of the respective column
+    imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
+    df.iloc[:, 1:3] = imputer.fit_transform(df.iloc[:, 1:3])
     tracker.analyze_changes(df)
 
-    # Replace categorical values with numerical values
-    df = df.replace(
-        {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
+    # Apply OneHotEncoder to the first column (assuming it is categorical)
+    # One-hot encode the first column
+    ct = ColumnTransformer(
+        transformers=[("encoder", OneHotEncoder(), [0])],
+        remainder="passthrough",
     )
+    df = pd.DataFrame(ct.fit_transform(df))
     tracker.analyze_changes(df)
 
-    # Drop unnecessary column
-    df = df.drop(["fnlwgt"], axis=1)
-    tracker.analyze_changes(df)
-
-    # Rename column
-    df = df.rename(columns={"hours-per-week": "hw"})
+    # Ensure column names are maintained or regenerated after transformation
+    # Assign new column names
+    df.columns = [f"feature_{i}" for i in range(df.shape[1])]
     tracker.analyze_changes(df)
