@@ -44,9 +44,7 @@ def run_pipeline(args, tracker) -> None:
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
-    tracker.analyze_changes(df)
 
-    # Replace values in certain columns
     df = df.replace(
         {
             "checking": {
@@ -121,17 +119,15 @@ def run_pipeline(args, tracker) -> None:
             "label": {2: 0},
         }
     )
-    tracker.analyze_changes(df)
 
-    # Map status column
     status_mapping = {
         "A91": "divorced",
         "A92": "divorced",
         "A93": "single",
         "A95": "single",
     }
+
     df["status"] = df["personal_status"].map(status_mapping).fillna("married")
-    tracker.analyze_changes(df)
 
     # Translate gender values
     df["personal_status"] = np.where(
@@ -139,13 +135,9 @@ def run_pipeline(args, tracker) -> None:
         0,
         np.where(df.personal_status == "A95", 0, 1),
     )
-    tracker.analyze_changes(df)
 
-    # Drop personal_status column
     df = df.drop(["personal_status"], axis=1)
-    tracker.analyze_changes(df)
 
-    # One-hot encode categorical variables
     columns = [
         "checking",
         "credit_history",
@@ -158,9 +150,9 @@ def run_pipeline(args, tracker) -> None:
         "housing",
         "job",
     ]
+
     for i, col in enumerate(columns):
         dummies = pd.get_dummies(df[col])
         df_dummies = dummies.add_prefix(col + "_")
         df = df.join(df_dummies)
         df = df.drop([col], axis=1)
-    tracker.analyze_changes(df)

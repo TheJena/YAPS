@@ -19,28 +19,31 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         type=str,
-        default="datasets/generated_dataset.csv",
+        default="datasets/german.csv",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/orders_pipeline.py",
+        default="pipelines/german_pipeline.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
-        "--frac", type=float, default=1, help="Sampling fraction [0.0 - 1.0]"
+        "--frac",
+        type=float,
+        default=0.05,
+        help="Sampling fraction [0.0 - 1.0]",
     )
     parser.add_argument(
         "--granularity_level",
         type=int,
-        default=3,
+        default=2,
         help="Granularity level: 1, 2 or 3",
     )
     parser.add_argument(
         "--entity_type_level",
         type=int,
-        default=2,
+        default=1,
         help="Entity level: 1 for entities and columns and 2 for columns",
     )
 
@@ -58,12 +61,13 @@ from extracted_code import run_pipeline
 
 # description of each activity. A list of dictionaries like { "act_name" : ("description of the operation", "code of the operation")}
 activities_description = descriptor.descript()
+print(activities_description)
 activities_description_dict = (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
         activities_description.replace("pipeline_operations = ", "")
     )
 )
-# print(activities_description_dict)
+print(activities_description_dict)
 
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
@@ -78,6 +82,7 @@ run_pipeline(get_args(), tracker)
 
 # Dictionary of all the df before and after the operations
 changes = tracker.changes
+print(changes)
 
 current_activities = []
 current_entities = {}
