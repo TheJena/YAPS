@@ -160,13 +160,11 @@ def column_entitiy_vision(changes, current_activities, args):
                 new_value = df2.at[idx, col]
 
                 if old_value != new_value:
-                    if (
-                        is_number(old_value)
-                        and is_number(new_value)
-                        and math.isnan(new_value)
-                        and math.isnan(old_value)
-                    ):
-                        continue
+                    if is_number(old_value) and is_number(new_value):
+                        old_val = float(old_value)
+                        new_val = float(new_value)
+                        if math.isnan(new_val) and math.isnan(old_val):
+                            continue
                     if (new_value, col, idx) in current_entities:
                         continue
                     # control il the column already exist or create it
