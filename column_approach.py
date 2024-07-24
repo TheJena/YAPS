@@ -99,13 +99,11 @@ def column_vision(changes, current_activities, args):
                     old_value = "Not exist"
                 new_value = df2.at[idx, col]
                 if old_value != new_value:
-                    if (
-                        is_number(old_value)
-                        and is_number(new_value)
-                        and math.isnan(new_value)
-                        and math.isnan(old_value)
-                    ):
-                        continue
+                    if is_number(old_value) and is_number(new_value):
+                        old_val = float(old_value)
+                        new_val = float(new_value)
+                        if math.isnan(new_val) and math.isnan(old_val):
+                            continue
                     # if the column already exist or create it
                     val_col = str(df2[col].tolist())
                     idx_col = str(df2.index.tolist())
