@@ -38,12 +38,21 @@ class LLM_formatter:
 
         example:
         pipeline:
-        #replace
-        df = df.replace('?', 0)
+        X_train, X_test, y_train, y_test = train_test_split(df[['latitude', 'longitude']], df[['median_house_value']], test_size=0.33, random_state=0)
+        #normalize the training and test data using the preprocessing.normalize() method from sklearn
+        X_train_norm = preprocessing.normalize(X_train)
+        X_test_norm = preprocessing.normalize(X_test)
 
+        kmeans = KMeans(n_clusters = 3, random_state = 0)
+        kmeans.fit(X_train_norm)
 
-        columns = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'native-country']
-        columns = ['education']
+        sns.scatterplot(data = X_train, x = 'longitude', y = 'latitude', hue = kmeans.labels_)
+        plt.show()
+
+        # Add cluster labels to the original DataFrame
+        df['cluster'] = kmeans.predict(preprocessing.normalize(df[['latitude', 'longitude']]))
+
+        columns = ['checking', 'credit_history', 'purpose', 'savings', 'employment', 'other_debtors', 'property', 'other_inst', 'housing', 'job']
         for i, col in enumerate(columns):
             dummies = pd.get_dummies(df[col])
             df_dummies = dummies.add_prefix(col + '_')
@@ -52,19 +61,37 @@ class LLM_formatter:
 
 
         response:
-        # Replace '?' with 0
-        df = df.replace('?', 0)
-        tracker.analyze_changes(df)
+         # Split data into training and testing sets
+            X_train, X_test, y_train, y_test = train_test_split(df[['latitude', 'longitude']], df[['median_house_value']], test_size=0.33, random_state=0)
+            tracker.analyze_changes(df)
 
-        # One-hot encode categorical columns
-        columns = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'native-country']
-        columns = ['education']
-        for i, col in enumerate(columns):
-            dummies = pd.get_dummies(df[col])
-            df_dummies = dummies.add_prefix(col + '_')
-            df = df.join(df_dummies)
-            df = df.drop([col], axis=1)
-        tracker.analyze_changes(df)
+            # Normalize the training and test data
+            X_train_norm = preprocessing.normalize(X_train)
+            X_test_norm = preprocessing.normalize(X_test)
+            tracker.analyze_changes(df)
+
+            # Fit KMeans clustering model to the normalized training data
+            kmeans = KMeans(n_clusters = 3, random_state = 0)
+            kmeans.fit(X_train_norm)
+            tracker.analyze_changes(df)
+
+            # Scatter plot of longitude vs latitude with hue as cluster labels
+            sns.scatterplot(data = X_train, x = 'longitude', y = 'latitude', hue = kmeans.labels_)
+            plt.show()
+            tracker.analyze_changes(df)
+
+            # Add cluster labels to the original DataFrame
+            df['cluster'] = kmeans.predict(preprocessing.normalize(df[['latitude', 'longitude']]))
+            tracker.analyze_changes(df)
+
+            #One-hot encode categorical variables
+            columns = ['checking', 'credit_history', 'purpose', 'savings', 'employment', 'other_debtors', 'property', 'other_inst', 'housing', 'job']
+            for i, col in enumerate(columns):
+                dummies = pd.get_dummies(df[col])
+                df_dummies = dummies.add_prefix(col + '_')
+                df = df.join(df_dummies)
+                df = df.drop([col], axis=1)
+             tracker.analyze_changes(df)
 
 
         Cleaning Pipeline:{pipeline_content}

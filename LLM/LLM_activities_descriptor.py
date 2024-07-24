@@ -27,7 +27,9 @@ class LLM_activities_descriptor:
         PIPELINE_STANDARDIZER_TEMPLATE = """
             You are an expert in data preprocessing pipelines. Return a list of name + (description of the single operations in the pipeline, python code of the operation), consider just the content of the run_pipeline function. Do not include sampling subscription and column name assignment and identification of the objects of the columns activities. Consider just the code after the subscription of the dataframe (df.subscribe()). Be the most detailed as possible.
             Return the result as a python dictionary with the operation name as key and the description as value.
-            Do not refer to comments.
+            Do not refer to comments. Do not include sampling operations. Consider just the operations appearing after the tracker.subscribe line and with a tracker.analyze_changes(df) in their block. All the operations followed by tracker.analyze_changes have to appear in the map.  Do not Consider the sampling as an operation
+            Give me the result as a map between ``` ```
+
 
             Example:
             pipeline:
@@ -47,6 +49,10 @@ class LLM_activities_descriptor:
             # Identify features and target
             X = data.drop('target', axis=1)
             y = data['target']
+
+            # Subscribe dataframe
+            df = tracker.subscribe(data)
+            tracker.analyze_changes(df)
 
             # Identify numerical and categorical columns
             num_features = X.select_dtypes(include=['int64', 'float64']).columns
@@ -95,8 +101,7 @@ class LLM_activities_descriptor:
             # Evaluate the model
             mse = mean_squared_error(y_test, y_pred)
             response:
-            ["Identify Features and Target": ("Separation of  the target variable from the feature variables by dropping the target column from the DataFrame", "X = data.drop('target', axis=1)
-            y = data['target']")", "Identifiction of numerical and categorical columns": ("Determine which columns are numerical and which are categorical using select_dtypes", "    num_features = X.select_dtypes(include=['int64', 'float64']).columns
+            ["Identification of numerical and categorical columns": ("Determine which columns are numerical and which are categorical using select_dtypes", "    num_features = X.select_dtypes(include=['int64', 'float64']).columns
             cat_features = X.select_dtypes(include=['object']).columns") ]
 
 
