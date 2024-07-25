@@ -15,7 +15,7 @@ def is_number(value):
         return False
 
 
-def column_entitiy_vision(changes, current_activities, args):
+def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
     # keeping current elements on the graph supporting the creation on neo4j
     current_entities = {}
     current_columns = {}
@@ -299,22 +299,27 @@ def column_entitiy_vision(changes, current_activities, args):
                             old_entity["id"]
                         )
 
-        if args.granularity_level == 1 or args.granularity_level == 2:
-            gen_element = keep_random_element_in_place(generated_entities)
-            inv_elem = None
-            if gen_element:
-                entities_to_keep.append(gen_element)
-            used_elem = keep_random_element_in_place(used_entities)
-            if used_elem:
-                if used_elem in invalidated_entities:
-                    invalidated_entities.clear()
-                    invalidated_entities.append(used_elem)
-                entities_to_keep.append(used_elem)
-            else:
-                inv_elem = keep_random_element_in_place(invalidated_entities)
+        if activity_to_zoom == act:
+            pass
+        else:
+            if args.granularity_level == 1 or args.granularity_level == 2:
+                gen_element = keep_random_element_in_place(generated_entities)
+                inv_elem = None
+                if gen_element:
+                    entities_to_keep.append(gen_element)
+                used_elem = keep_random_element_in_place(used_entities)
+                if used_elem:
+                    if used_elem in invalidated_entities:
+                        invalidated_entities.clear()
+                        invalidated_entities.append(used_elem)
+                    entities_to_keep.append(used_elem)
+                else:
+                    inv_elem = keep_random_element_in_place(
+                        invalidated_entities
+                    )
 
-            if inv_elem:
-                entities_to_keep.append(inv_elem)
+                if inv_elem:
+                    entities_to_keep.append(inv_elem)
 
         current_relations_column.append(
             create_relation_column(

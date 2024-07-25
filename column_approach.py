@@ -12,7 +12,7 @@ def is_number(value):
         return False
 
 
-def column_vision(changes, current_activities, args):
+def column_vision(changes, current_activities):
     derivations_column = []
     current_relations_column = []
     current_columns = {}
