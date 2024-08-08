@@ -2,6 +2,7 @@ from graph.structure import *
 from graph.constants import *
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 import math
+from SECRET import MY_API_KEY
 
 
 def is_number(value):
@@ -17,7 +18,7 @@ def column_vision(changes, current_activities):
     current_relations_column = []
     current_columns = {}
 
-    used_columns_giver = LLM_activities_used_columns(api_key="MY_APY_KEY")
+    used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
 
     for act in changes.keys():
         generated_columns = []
@@ -32,13 +33,15 @@ def column_vision(changes, current_activities):
             activity["context"],
             activity["code"],
         )
+        prova = used_columns_giver.give_columns(
+            df1, df2, activity_code, activity_description
+        )
+        print(prova)
         used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
-            used_columns_giver.give_columns(
-                df1, df2, activity_code, activity_description
-            )
+            prova
         )
         print(used_cols)
-        print(activity["function_name"], df1, df2)
+        # print(activity['function_name'], df1, df2)
         # Iterate over the columns and rows to find differences
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)

@@ -1,5 +1,8 @@
-import pandas as pd
 import sys
+import argparse
+import pandas as pd
+from graph.logger import CustomLogger
+import numpy as np
 
 
 def stratified_sample(df, frac):
@@ -32,28 +35,8 @@ def stratified_sample(df, frac):
 def run_pipeline(args, tracker) -> None:
 
     input_path = args.dataset
-    df = pd.read_csv(input_path)
 
-    # Assign names to columns
-    names = [
-        "age",
-        "workclass",
-        "fnlwgt",
-        "education",
-        "education-num",
-        "marital-status",
-        "occupation",
-        "relationship",
-        "race",
-        "sex",
-        "capital-gain",
-        "capital-loss",
-        "hours-per-week",
-        "native-country",
-        "label",
-    ]
-
-    df.columns = names
+    df = pd.read_csv(input_path, header=0)
 
     if args.frac != 0.0:
         df = df.sample(frac=args.frac)
@@ -62,44 +45,49 @@ def run_pipeline(args, tracker) -> None:
     df = tracker.subscribe(df)
     tracker.analyze_changes(df)
 
-    # Strip whitespace from categorical columns
+    # Drop columns not in the specified list
     columns = [
-        "workclass",
-        "education",
-        "marital-status",
-        "occupation",
-        "relationship",
+        "age",
+        "c_charge_degree",
         "race",
         "sex",
-        "native-country",
-        "label",
+        "priors_count",
+        "days_b_screening_arrest",
+        "two_year_recid",
+        "c_jail_in",
+        "c_jail_out",
     ]
-    df[columns] = df[columns].applymap(str.strip)
+    df = df.drop(df.columns.difference(columns), axis=1)
     tracker.analyze_changes(df)
 
-    # Replace '?' with 0
-    df = df.replace("?", 0)
+    # Drop rows with missing values
+    df = df.dropna()
     tracker.analyze_changes(df)
 
-    # One-hot encode 'education' column
-    columns = ["education"]
-    for i, col in enumerate(columns):
-        dummies = pd.get_dummies(df[col])
-        df_dummies = dummies.add_prefix(col + "_")
-        df = df.join(df_dummies)
-        df = df.drop([col], axis=1)
+    # Convert race column to binary values
+    df["race"] = [0 if r != "Caucasian" else 1 for r in df["race"]]
     tracker.analyze_changes(df)
 
-    # Replace categorical values with numerical values
-    df = df.replace(
-        {"sex": {"Male": 1, "Female": 0}, "label": {"<=50K": 0, ">50K": 1}}
-    )
+    # Rename two_year_recid column to label
+    df = df.rename({"two_year_recid": "label"}, axis=1)
     tracker.analyze_changes(df)
 
-    # Drop 'fnlwgt' column
-    df = df.drop(["fnlwgt"], axis=1)
+    # Reverse label for consistency with function defs: 1 means no recid (good), 0 means recid (bad)
+    df["label"] = [0 if l == 1 else 1 for l in df["label"]]
     tracker.analyze_changes(df)
 
-    # Rename 'hours-per-week' column to 'hw'
-    df = df.rename(columns={"hours-per-week": "hw"})
+    # Calculate jailtime in days
+    df["jailtime"] = (
+        pd.to_datetime(df.c_jail_out) - pd.to_datetime(df.c_jail_in)
+    ).dt.days
+    tracker.analyze_changes(df)
+
+    # Drop c_jail_in and c_jail_out columns
+    df = df.drop(["c_jail_in", "c_jail_out"], axis=1)
+    tracker.analyze_changes(df)
+
+    # Convert c_charge_degree column to binary values
+    df["c_charge_degree"] = [
+        0 if s == "M" else 1 for s in df["c_charge_degree"]
+    ]
     tracker.analyze_changes(df)
