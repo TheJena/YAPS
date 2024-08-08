@@ -73,8 +73,6 @@ def run_pipeline(args, tracker) -> None:
         "label",
     ]
     df[columns] = df[columns].applymap(str.strip)
-
-    # replace
     df = df.replace("?", 0)
 
     columns = ["education"]

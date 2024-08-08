@@ -5,6 +5,7 @@ from utils import *
 from graph.constants import *
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 import math
+from SECRET import MY_API_KEY
 
 
 def is_number(value):
@@ -20,7 +21,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
     current_entities = {}
     current_columns = {}
 
-    used_columns_giver = LLM_activities_used_columns(api_key="MY_APY_KEY")
+    used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
     # keeping current elements on the graph supporting the creation on neo4j
     entities_to_keep = []
 

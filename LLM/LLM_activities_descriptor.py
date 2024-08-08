@@ -24,7 +24,7 @@ class LLM_activities_descriptor:
         self.pipeline_content = self.file_to_text(file_pipeline)
 
         # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
-        PIPELINE_STANDARDIZER_TEMPLATE = """
+        PIPELINE_DESCRIPTOR_TEMPLATE = """
             You are an expert in data preprocessing pipelines. Return a list of name + (description of the single operations in the pipeline, python code of the operation), consider just the content of the run_pipeline function. Do not include sampling subscription and column name assignment and identification of the objects of the columns activities. Consider just the code after the subscription of the dataframe (df.subscribe()). Be the most detailed as possible.
             Return the result as a python dictionary with the operation name as key and the description as value.
             Do not refer to comments. Do not include sampling operations. Consider just the operations appearing after the tracker.subscribe line and with a tracker.analyze_changes(df) in their block. All the operations followed by tracker.analyze_changes have to appear in the map.  Do not Consider the sampling as an operation
@@ -109,7 +109,7 @@ class LLM_activities_descriptor:
         """
 
         self.prompt = PromptTemplate(
-            template=PIPELINE_STANDARDIZER_TEMPLATE,
+            template=PIPELINE_DESCRIPTOR_TEMPLATE,
             input_variables=["pipeline_content", "question"],
         )
 
