@@ -27,6 +27,12 @@
 import random
 
 
+def i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+    *args, **kwargs
+):
+    raise NotImplementedError()
+
+
 def keep_random_element_in_place(lst):
     if not lst or len(lst) == 0:
         return []  # Return None if the list is empty

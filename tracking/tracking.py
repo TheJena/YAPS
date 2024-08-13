@@ -24,7 +24,6 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from typing import Dict
 import pandas as pd
 
 
@@ -42,8 +41,10 @@ class ProvenanceTracker:
 
     """
     function that analyze changes before and after the operation
-    the result will be a dictionary of dictionaries {operation_number:{"before":df_input, "after":df_output}}
-    where operation number is the number of the operation/activity in chronological order of execution
+    the result will be a dictionary of dictionaries {operation_number:
+    {"before": df_input, "after": df_output}} where operation number
+    is the number of the operation/activity in chronological order of
+    execution
     """
 
     def analyze_changes(self, df_after):

@@ -24,15 +24,14 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from langchain_groq import ChatGroq
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-import re
+from langchain_groq import ChatGroq
 import os
+import re
 
 
 class LLM_formatter:
-
     def __init__(
         self,
         file_pipeline,
@@ -49,36 +48,75 @@ class LLM_formatter:
         # cleaning pipeline in text format
         self.pipeline_content = self.file_to_text(file_pipeline)
 
-        # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
+        # Template per descrivere il grafo e suggerire miglioramenti
+        # alla pipeline di pulizia dei dati
         PIPELINE_STANDARDIZER_TEMPLATE = """
-        Add python comments describing the single existing operations in the pipeline, be the most detailed as possible.Return your response as a complete python file, including both changed and not changed functions, import and ..
-        Do not write new lines of code, just add python comments and empty lines related to the code that you read.
+
+        Add python comments describing the single existing operations
+        in the pipeline, be the most detailed as possible.  Return
+        your response as a complete python file, including both
+        changed and not changed functions, import and ..
+
+        Do not write new lines of code, just add python comments and
+        empty lines related to the code that you read.
 
         Instructions:
-        1. Each cleaning operation on the data frame should be conatined in the same block of code without empty lines.
-        2. Do not write new lines of code, just add comments and empty lines.
-        3. Each operation on the data frame should be separated by a single empty line.
-        4. Consider just the code contained in the run_pipeline function.
-        5. Exclusively after the blocks after the subscribe dataframe block for each identified block add at the end, after leaving an empty line a line containing "tracker.analyze_changes(df)"
+        1. Each cleaning operation on the data frame should be
+           conatined in the same block of code without empty lines.
+        2. Do not write new lines of code, just add comments and empty
+           lines.
+        3. Each operation on the data frame should be separated by a
+           single empty line.
+        4. Consider just the code contained in the run_pipeline
+           function.
+        5. Exclusively after the blocks after the subscribe dataframe
+           block for each identified block add at the end, after leaving
+           an empty line a line containing "tracker.analyze_changes(df)"
         6. Do not comment "tracker.analyze_changes(df)" lines
 
         example:
         pipeline:
-        X_train, X_test, y_train, y_test = train_test_split(df[['latitude', 'longitude']], df[['median_house_value']], test_size=0.33, random_state=0)
-        #normalize the training and test data using the preprocessing.normalize() method from sklearn
+        X_train, X_test, y_train, y_test = train_test_split(
+            df[["latitude", "longitude"]],
+            df[["median_house_value"]],
+            test_size=0.33,
+            random_state=0,
+        )
+        # normalize the training and test data using the
+        # preprocessing.normalize() method from sklearn
         X_train_norm = preprocessing.normalize(X_train)
         X_test_norm = preprocessing.normalize(X_test)
 
         kmeans = KMeans(n_clusters = 3, random_state = 0)
         kmeans.fit(X_train_norm)
 
-        sns.scatterplot(data = X_train, x = 'longitude', y = 'latitude', hue = kmeans.labels_)
+        sns.scatterplot(
+            data=X_train,
+            x="longitude",
+            y="latitude",
+            hue=kmeans.labels_,
+        )
         plt.show()
 
         # Add cluster labels to the original DataFrame
-        df['cluster'] = kmeans.predict(preprocessing.normalize(df[['latitude', 'longitude']]))
+        df["cluster"] = kmeans.predict(
+            preprocessing.normalize(
+                df[["latitude", "longitude"]]
+            )
+        )
 
-        columns = ['checking', 'credit_history', 'purpose', 'savings', 'employment', 'other_debtors', 'property', 'other_inst', 'housing', 'job']
+        columns = [
+            "checking",
+            "credit_history",
+            "purpose",
+            "savings",
+            "employment",
+            "other_debtors",
+            "property",
+            "other_inst",
+            "housing",
+            "job",
+        ]
         for i, col in enumerate(columns):
             dummies = pd.get_dummies(df[col])
             df_dummies = dummies.add_prefix(col + '_')
@@ -88,7 +126,12 @@ class LLM_formatter:
 
         response:
          # Split data into training and testing sets
-            X_train, X_test, y_train, y_test = train_test_split(df[['latitude', 'longitude']], df[['median_house_value']], test_size=0.33, random_state=0)
+            X_train, X_test, y_train, y_test = train_test_split(
+                df[['latitude', 'longitude']],
+                df[['median_house_value']],
+                test_size=0.33,
+                random_state=0
+            )
             tracker.analyze_changes(df)
 
             # Normalize the training and test data
@@ -102,16 +145,34 @@ class LLM_formatter:
             tracker.analyze_changes(df)
 
             # Scatter plot of longitude vs latitude with hue as cluster labels
-            sns.scatterplot(data = X_train, x = 'longitude', y = 'latitude', hue = kmeans.labels_)
+            sns.scatterplot(
+                data=X_train,
+                x="longitude",
+                y="latitude",
+                hue=kmeans.labels_,
+            )
             plt.show()
             tracker.analyze_changes(df)
 
             # Add cluster labels to the original DataFrame
-            df['cluster'] = kmeans.predict(preprocessing.normalize(df[['latitude', 'longitude']]))
+            df['cluster'] = kmeans.predict(
+                preprocessing.normalize(df[['latitude', 'longitude']])
+            )
             tracker.analyze_changes(df)
 
             #One-hot encode categorical variables
-            columns = ['checking', 'credit_history', 'purpose', 'savings', 'employment', 'other_debtors', 'property', 'other_inst', 'housing', 'job']
+            columns = [
+                "checking",
+                "credit_history",
+                "purpose",
+                "savings",
+                "employment",
+                "other_debtors",
+                "property",
+                "other_inst",
+                "housing",
+                "job",
+            ]
             for i, col in enumerate(columns):
                 dummies = pd.get_dummies(df[col])
                 df_dummies = dummies.add_prefix(col + '_')
@@ -131,7 +192,9 @@ class LLM_formatter:
         )
 
         self.chat_chain = LLMChain(
-            llm=self.chat, prompt=self.prompt, verbose=False
+            llm=self.chat,
+            prompt=self.prompt,
+            verbose=False,
         )
 
     def file_to_text(self, file):

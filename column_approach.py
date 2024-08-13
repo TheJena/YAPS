@@ -24,11 +24,13 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from graph.structure import *
-from graph.constants import *
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
-import math
 from SECRET import MY_API_KEY
+from graph.structure import create_column, create_relation_column
+from utils import (
+    i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
+)
+import math
 
 
 def is_number(value):
@@ -63,7 +65,7 @@ def column_vision(changes, current_activities):
             df1, df2, activity_code, activity_description
         )
         print(prova)
-        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(  # noqa
             prova
         )
         print(used_cols)
@@ -154,7 +156,9 @@ def column_vision(changes, current_activities):
                             col,
                         ) not in current_columns.keys():
                             old_column = create_column(
-                                val_old_col, idx_old_col, col
+                                val_old_col,
+                                idx_old_col,
+                                col,
                             )
                             current_columns[
                                 (val_old_col, idx_old_col, col)
@@ -196,18 +200,32 @@ def column_vision(changes, current_activities):
                         col,
                     ) not in current_columns.keys():
                         new_column = create_column(
-                            val_new_col, idx_new_col, col
+                            val_new_col,
+                            idx_new_col,
+                            col,
                         )
-                        current_columns[(val_new_col, idx_new_col, col)] = (
-                            new_column
-                        )
+                        current_columns[
+                            (
+                                val_new_col,
+                                idx_new_col,
+                                col,
+                            )
+                        ] = new_column
                     else:
                         new_column = current_columns[
-                            (val_new_col, idx_new_col, col)
+                            (
+                                val_new_col,
+                                idx_new_col,
+                                col,
+                            )
                         ]
-                    current_columns[(val_new_col, idx_new_col, col)] = (
-                        new_column
-                    )
+                    current_columns[
+                        (
+                            val_new_col,
+                            idx_new_col,
+                            col,
+                        )
+                    ] = new_column
                     generated_columns.append(new_column["id"])
                     if new_column and new_column["id"] != old_column["id"]:
                         derivations_column.append(

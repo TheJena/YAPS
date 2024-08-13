@@ -24,15 +24,13 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from langchain_groq import ChatGroq
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+from langchain_groq import ChatGroq
 import re
-import os
 
 
 class LLM_activities_used_columns:
-
     def __init__(
         self,
         api_key: str,
@@ -45,14 +43,20 @@ class LLM_activities_used_columns:
             model_name=model_name,
         )
 
-        # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
+        # Template per descrivere il grafo e suggerire miglioramenti
+        # alla pipeline di pulizia dei dati
         PIPELINE_STANDARDIZER_TEMPLATE = """
-            You are receiving the dataframe before and after the operation, the code and the description of the operation.
-            Return me a python list with the name of the columns in the dataframe before used by the operation. Limit your observations just to this inputs and the code of the operation. Do not make assumptions.
-            Return the python list between `[]`.
+            You are receiving the dataframe before and after the
+            operation, the code and the description of the operation.
 
+            Return me a python list with the name of the columns in
+            the dataframe before used by the operation. Limit your
+            observations just to this inputs and the code of the
+            operation. Do not make assumptions.  Return the python
+            list between `[]`.
 
-            For example if a column is dropped only the dropped column is used.
+            For example if a column is dropped only the dropped column
+            is used.
             Example of answer: ```["column1", "column2", "column3"]```
             Write the list inside ``` ```
 
@@ -69,11 +73,12 @@ class LLM_activities_used_columns:
         )
 
         self.chat_chain = LLMChain(
-            llm=self.chat, prompt=self.prompt, verbose=False
+            llm=self.chat,
+            prompt=self.prompt,
+            verbose=False,
         )
 
     def give_columns(self, df_before, df_after, code, description) -> str:
-
         response = self.chat_chain.invoke(
             {
                 "df_before": df_before,

@@ -25,8 +25,8 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Dict, List
-import uuid
 import graph.constants as constants
+import uuid
 
 
 def create_activity(
@@ -76,8 +76,8 @@ def create_activity(
         "code": code,
         "code_line": code_line,
         "tracker_id": (
-            constants.NAMESPACE_TRACKER + tracker_id
-            if tracker_id is not None
+            constants.NAMESPACE_TRACKER + tracker_id  #
+            if tracker_id is not None  #
             else None
         ),
     }
@@ -147,7 +147,8 @@ def create_relation(
     :param generated: The list of generated entities.
     :param used: The list of used entities.
     :param invalidated: The list of invalidated entities.
-    :param same: A boolean indicating whether the generated and used entities are the same.
+    :param same: A boolean indicating whether the generated and used
+                 entities are the same.
     :return: None
     """
 
@@ -175,7 +176,8 @@ def create_relation_column(
     :param generated: The list of generated columns.
     :param used: The list of used columns.
     :param invalidated: The list of invalidated columns.
-    :param same: A boolean indicating whether the generated and used entities are the same.
+    :param same: A boolean indicating whether the generated and used
+                 entities are the same.
     :return: None
     """
 

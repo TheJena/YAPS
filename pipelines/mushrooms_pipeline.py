@@ -34,7 +34,7 @@ def stratified_sample(df, frac):
     if frac > 0.0 and frac < 1.0:
         # Infer categorical columns for stratification
         stratify_columns = df.select_dtypes(
-            include=["object"]
+            include=["object"],
         ).columns.tolist()
 
         # Check if any class in stratify columns has fewer than 2 members
@@ -47,7 +47,8 @@ def stratified_sample(df, frac):
                 )
                 return stratified_df.reset_index(drop=True)
 
-        # If no suitable stratification column is found, fall back to random sampling
+        # If no suitable stratification column is found, fall back to
+        # random sampling
         sampled_df = df.sample(frac=frac).reset_index(drop=True)
     else:
         sampled_df = df
@@ -55,7 +56,6 @@ def stratified_sample(df, frac):
 
 
 def run_pipeline(args, tracker) -> None:
-
     input_path = "datasets/mushrooms.csv"
 
     df = pd.read_csv(input_path, sep=";", index_col=False)
