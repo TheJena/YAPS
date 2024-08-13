@@ -27,7 +27,7 @@
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from LLM.LLM_formatter import LLM_formatter
-from SECRET import MY_API_KEY
+from SECRET import MY_API_KEY, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from column_approach import column_vision
 from column_entity_approach import column_entitiy_vision
 from graph.neo4j import Neo4jConnector, Neo4jFactory
@@ -98,7 +98,7 @@ activities_description_dict = (
 
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
-    uri="bolt://localhost", user="MY_NEO4J_USERNAME", pwd="MY_NEO4J_PASSWORD"
+    uri="bolt://localhost", user=MY_NEO4J_USERNAME, pwd=MY_NEO4J_PASSWORD
 )
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
