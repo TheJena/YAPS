@@ -24,10 +24,9 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-import logging
-
-from graph.logger_formatter import CustomFormatter
 from graph.decorators import Singleton
+from graph.logger_formatter import CustomFormatter
+import logging
 
 
 @Singleton

@@ -28,7 +28,6 @@ import pandas as pd
 
 
 def run_pipeline(args, tracker) -> None:
-
     input_path = args.dataset
 
     df = pd.read_csv(input_path, header=0)
@@ -47,7 +46,6 @@ def run_pipeline(args, tracker) -> None:
     cols = ["Pclass", "Sex", "Embarked"]
     tracker.dataframe_tracking = False  # to have the missing link for now
     for i, col in enumerate(cols):
-
         dummies = pd.get_dummies(df[col])
         df_dummies = dummies.add_prefix(col + "_")
         df = df.join(df_dummies)

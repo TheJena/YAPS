@@ -24,14 +24,19 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from graph.structure import *
-from graph.constants import *
-from graph.structure import *
-from utils import *
-from graph.constants import *
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
-import math
 from SECRET import MY_API_KEY
+from graph.structure import (
+    create_entity,
+    create_column,
+    create_relation,
+    create_relation_column,
+)
+from utils import (
+    i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
+    keep_random_element_in_place,
+)
+import math
 
 
 def is_number(value):
@@ -78,14 +83,15 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
         # print(activity['function_name'])
         # print(df1.head(10))
         # print(df2.head(10))
-        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(  # noqa
             used_columns_giver.give_columns(
                 df1, df2, activity_code, activity_description
             )
         )
         # print(used_cols)
 
-        # #Approach working when the number of rows is the same and the number of columns increase or is the same
+        # #Approach working when the number of rows is the same and
+        # the number of columns increase or is the same
         # if len(df1.columns) <= len(df2.columns):
         # Iterate over the columns and rows to find differences
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
@@ -116,7 +122,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                     current_entities[(old_value, col, idx)] = old_entity
                 invalidated_entities.append(old_entity["id"])
                 used_entities.append(old_entity["id"])
-                current_columns_to_entities[new_column["id"]].append(
+                current_columns_to_entities[new_column["id"]].append(  #
                     old_entity["id"]
                 )
         # if the column is exclusively in the "after" dataframe
@@ -157,7 +163,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                     )
                 current_entities[(new_value, col, idx)] = new_entity
                 generated_entities.append(new_entity["id"])
-                current_columns_to_entities[new_column["id"]].append(
+                current_columns_to_entities[new_column["id"]].append(  #
                     new_entity["id"]
                 )
 
@@ -165,7 +171,8 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
         for col in common_col:
             new_column = None
 
-            # verify if a column is used and in that case add it to used columns
+            # verify if a column is used and in that case add it to
+            # used columns
             used_column = None
             if col in used_cols:
                 val_col = str(df1[col].tolist())
@@ -207,7 +214,8 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
 
                     entity = create_entity(new_value, col, idx)
                     if old_value != "Not exist":
-                        # same control but for the before df, to get the used columns
+                        # same control but for the before df, to get
+                        # the used columns
                         old_column = None
                         val_old_col = str(df1[col].tolist())
                         idx_old_col = str(df1.index.tolist())
@@ -217,7 +225,9 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                             col,
                         ) not in current_columns.keys():
                             old_column = create_column(
-                                val_old_col, idx_old_col, col
+                                val_old_col,
+                                idx_old_col,
+                                col,
                             )
                             current_columns[
                                 (val_old_col, idx_old_col, col)
@@ -239,13 +249,21 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                         old_entity = None
                         if (old_value, col, idx) in current_entities.keys():
                             old_entity = current_entities[
-                                (old_value, col, idx)
+                                (
+                                    old_value,
+                                    col,
+                                    idx,
+                                )
                             ]
                         else:
                             old_entity = create_entity(old_value, col, idx)
-                            current_entities[(old_value, col, idx)] = (
-                                old_entity
-                            )
+                            current_entities[
+                                (
+                                    old_value,
+                                    col,
+                                    idx,
+                                )
+                            ] = old_entity
                         derivations.append(
                             {
                                 "gen": str(entity["id"]),
@@ -259,7 +277,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                         )
                     generated_entities.append(entity["id"])
                     current_entities[(new_value, col, idx)] = entity
-                    current_columns_to_entities[new_column["id"]].append(
+                    current_columns_to_entities[new_column["id"]].append(  #
                         entity["id"]
                     )
         # # Iterate over the columns and rows to find differences
@@ -289,13 +307,21 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                             col,
                         ) not in current_columns.keys():
                             old_column = create_column(val_col, idx_col, col)
-                            current_columns[(val_col, idx_col, col)] = (
-                                old_column
-                            )
+                            current_columns[
+                                (
+                                    val_col,
+                                    idx_col,
+                                    col,
+                                )
+                            ] = old_column
                             current_columns_to_entities[old_column["id"]] = []
                         else:
                             old_column = current_columns[
-                                (val_col, idx_col, col)
+                                (
+                                    val_col,
+                                    idx_col,
+                                    col,
+                                )
                             ]
                         old_value = df1.at[idx, col]
                         old_entity = create_entity(
@@ -341,9 +367,9 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                         invalidated_entities.append(used_elem)
                     entities_to_keep.append(used_elem)
                 else:
-                    inv_elem = keep_random_element_in_place(
-                        invalidated_entities
-                    )
+                    inv_elem = keep_random_element_in_place(  #
+                        invalidated_entities  #
+                    )  #
 
                 if inv_elem:
                     entities_to_keep.append(inv_elem)

@@ -24,25 +24,15 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-import pandas as pd
-import sys
-
+from sklearn import metrics
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import plot_tree
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.tree import (
-    DecisionTreeClassifier,
-)  # Import Decision Tree Classifier
-from sklearn.model_selection import (
-    train_test_split,
-)  # Import train_test_split function
-from sklearn import (
-    metrics,
-)  # Import scikit-learn metrics module for accuracy calculation
 
 
 def run_pipeline(args, tracker) -> None:
-
     input_path = args.dataset
 
     col_names = [
@@ -89,7 +79,10 @@ def run_pipeline(args, tracker) -> None:
     # Visualize the decision tree
     plt.figure(figsize=(20, 10))
     plot_tree(
-        clf, feature_names=feature_cols, class_names=["0", "1"], filled=True
+        clf,
+        feature_names=feature_cols,
+        class_names=["0", "1"],
+        filled=True,
     )
     plt.show()
 
@@ -103,6 +96,9 @@ def run_pipeline(args, tracker) -> None:
     # Visualize the decision tree
     plt.figure(figsize=(20, 10))
     plot_tree(
-        clf, feature_names=feature_cols, class_names=["0", "1"], filled=True
+        clf,
+        feature_names=feature_cols,
+        class_names=["0", "1"],
+        filled=True,
     )
     plt.show()

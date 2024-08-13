@@ -24,12 +24,12 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn.cluster import KMeans
-import seaborn as sns
-import pandas as pd
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 
 def stratified_sample(df, frac):
@@ -39,7 +39,7 @@ def stratified_sample(df, frac):
     if frac > 0.0 and frac < 1.0:
         # Infer categorical columns for stratification
         stratify_columns = df.select_dtypes(
-            include=["object"]
+            include=["object"],
         ).columns.tolist()
 
         # Check if any class in stratify columns has fewer than 2 members
@@ -52,7 +52,8 @@ def stratified_sample(df, frac):
                 )
                 return stratified_df.reset_index(drop=True)
 
-        # If no suitable stratification column is found, fall back to random sampling
+        # If no suitable stratification column is found, fall back to
+        # random sampling
         sampled_df = df.sample(frac=frac).reset_index(drop=True)
     else:
         sampled_df = df
@@ -60,7 +61,6 @@ def stratified_sample(df, frac):
 
 
 def run_pipeline(args, tracker) -> None:
-
     input_path = "datasets/housing.csv"
 
     df = pd.read_csv(input_path)
@@ -74,7 +74,10 @@ def run_pipeline(args, tracker) -> None:
     df = tracker.subscribe(df)
 
     sns.scatterplot(
-        data=df, x="longitude", y="latitude", hue="median_house_value"
+        data=df,
+        x="longitude",
+        y="latitude",
+        hue="median_house_value",
     )
     plt.show()
     X_train, X_test, y_train, y_test = train_test_split(
@@ -83,15 +86,19 @@ def run_pipeline(args, tracker) -> None:
         test_size=0.33,
         random_state=0,
     )
-    # normalize the training and test data using the preprocessing.normalize() method from sklearn
+    # normalize the training and test data using the
+    # preprocessing.normalize() method from sklearn
     X_train_norm = preprocessing.normalize(X_train)
-    X_test_norm = preprocessing.normalize(X_test)
+    # X_test_norm = preprocessing.normalize(X_test)
 
     kmeans = KMeans(n_clusters=3, random_state=0)
     kmeans.fit(X_train_norm)
 
     sns.scatterplot(
-        data=X_train, x="longitude", y="latitude", hue=kmeans.labels_
+        data=X_train,
+        x="longitude",
+        y="latitude",
+        hue=kmeans.labels_,
     )
     plt.show()
 

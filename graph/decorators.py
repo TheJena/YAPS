@@ -24,15 +24,16 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-import time
 from datetime import timedelta
+import time
 
 
 def timing(log_file: str = None):
     """
     Measures the execution time of a function and appends it to a log file.
 
-    :param str log_file: The name of the log file to append execution times (optional).
+    :param str log_file: The name of the log file to append execution
+                         times (optional).
     """
 
     def decorator(f):
@@ -62,12 +63,13 @@ def timing(log_file: str = None):
             elapsed_time = time.time() - start_time
 
             tracker.logger.info(
-                msg=f"{f.__name__} function took {str(timedelta(seconds=elapsed_time))}"
+                msg=f"{f.__name__} function took "
+                f"{str(timedelta(seconds=elapsed_time))}"
             )
 
             if log_file is not None:
                 with open(log_file, "a") as file:
-                    file.write(
+                    file.write(  #
                         f"{f.__module__};{f.__name__};{code};{elapsed_time}\n"
                     )
 
@@ -89,12 +91,14 @@ def suppress_tracking(f):
 
     def wrap(*args, **kwargs):
         """
-        Wrapper function that temporarily disables tracking and then reverts it.
+        Wrapper function that temporarily disables tracking and
+        then reverts it.
 
         :param args: Positional arguments for the function.
         :param kwargs: Keyword arguments for the function.
 
         :return: The result of the wrapped function.
+
         """
         tracker = args[0]
         temp1, temp2 = (

@@ -24,15 +24,13 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from langchain_groq import ChatGroq
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+from langchain_groq import ChatGroq
 import re
-import os
 
 
 class LLM_activities_descriptor:
-
     def __init__(
         self,
         file_pipeline,
@@ -49,13 +47,30 @@ class LLM_activities_descriptor:
         # cleaning pipeline in text format
         self.pipeline_content = self.file_to_text(file_pipeline)
 
-        # Template per descrivere il grafo e suggerire miglioramenti alla pipeline di pulizia dei dati
+        # Template per descrivere il grafo e suggerire miglioramenti
+        # alla pipeline di pulizia dei dati
         PIPELINE_DESCRIPTOR_TEMPLATE = """
-            You are an expert in data preprocessing pipelines. Return a list of name + (description of the single operations in the pipeline, python code of the operation), consider just the content of the run_pipeline function. Do not include sampling subscription and column name assignment and identification of the objects of the columns activities. Consider just the code after the subscription of the dataframe (df.subscribe()). Be the most detailed as possible.
-            Return the result as a python dictionary with the operation name as key and the description as value.
-            Do not refer to comments. Do not include sampling operations. Consider just the operations appearing after the tracker.subscribe line and with a tracker.analyze_changes(df) in their block. All the operations followed by tracker.analyze_changes have to appear in the map.  Do not Consider the sampling as an operation
-            Give me the result as a map between ``` ```
 
+            You are an expert in data preprocessing pipelines. Return
+            a list of name + (description of the single operations in
+            the pipeline, python code of the operation), consider just
+            the content of the run_pipeline function. Do not include
+            sampling subscription and column name assignment and
+            identification of the objects of the columns
+            activities. Consider just the code after the subscription
+            of the dataframe (df.subscribe()). Be the most detailed as
+            possible.
+
+            Return the result as a python dictionary with the
+            operation name as key and the description as value.
+
+            Do not refer to comments. Do not include sampling
+            operations. Consider just the operations appearing after
+            the tracker.subscribe line and with a
+            tracker.analyze_changes(df) in their block. All the
+            operations followed by tracker.analyze_changes have to
+            appear in the map.  Do not consider the sampling as an
+            operation Give me the result as a map between ``` ```
 
             Example:
             pipeline:
@@ -81,7 +96,9 @@ class LLM_activities_descriptor:
             tracker.analyze_changes(df)
 
             # Identify numerical and categorical columns
-            num_features = X.select_dtypes(include=['int64', 'float64']).columns
+            num_features = X.select_dtypes(
+                include=["int64", "float64"]
+            ).columns
             cat_features = X.select_dtypes(include=['object']).columns
 
             # Define preprocessing for numerical data
@@ -116,7 +133,12 @@ class LLM_activities_descriptor:
             ])
 
             # Split data into train and test sets
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            X_train, X_test, y_train, y_test = train_test_split(
+                X,
+                y,
+                test_size=0.2,
+                random_state=42,
+            )
 
             # Fit the model
             pipeline.fit(X_train, y_train)
@@ -127,8 +149,18 @@ class LLM_activities_descriptor:
             # Evaluate the model
             mse = mean_squared_error(y_test, y_pred)
             response:
-            ["Identification of numerical and categorical columns": ("Determine which columns are numerical and which are categorical using select_dtypes", "    num_features = X.select_dtypes(include=['int64', 'float64']).columns
-            cat_features = X.select_dtypes(include=['object']).columns") ]
+            [
+                "Identification of numerical and categorical columns": (
+                    "Determine which columns are numerical "
+                    "and which are categorical using select_dtypes",
+                    "    num_features = X.select_dtypes(",
+                    "        include=['int64', 'float64',]",
+                    "    ).columns",
+                    "    cat_features = X.select_dtypes(",
+                    "        include=['object']",
+                    "    ).columns",
+                )
+            ]
 
 
             Cleaning Pipeline:{pipeline_content}
@@ -140,7 +172,9 @@ class LLM_activities_descriptor:
         )
 
         self.chat_chain = LLMChain(
-            llm=self.chat, prompt=self.prompt, verbose=False
+            llm=self.chat,
+            prompt=self.prompt,
+            verbose=False,
         )
 
     def file_to_text(self, file):
@@ -155,7 +189,9 @@ class LLM_activities_descriptor:
 
     def descript(self) -> str:
         response = self.chat_chain.invoke(
-            {"pipeline_content": self.pipeline_content}
+            {
+                "pipeline_content": self.pipeline_content,
+            }
         )
         # Use regular expression to find text between triple quotes
         extracted_text = re.search("```(.*?)```", response["text"], re.DOTALL)

@@ -25,17 +25,18 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
-from LLM.LLM_formatter import LLM_formatter
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
-from graph.neo4j import Neo4jConnector, Neo4jFactory
-from graph.structure import *
-from utils import *
-from column_entity_approach import column_entitiy_vision
-from column_approach import column_vision
-from graph.constants import *
-from tracking.tracking import ProvenanceTracker
-import argparse
+from LLM.LLM_formatter import LLM_formatter
 from SECRET import MY_API_KEY
+from column_approach import column_vision
+from column_entity_approach import column_entitiy_vision
+from graph.neo4j import Neo4jConnector, Neo4jFactory
+from graph.structure import create_activity
+from tracking.tracking import ProvenanceTracker
+from utils import (
+    i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
+)
+import argparse
 
 
 def get_args() -> argparse.Namespace:
@@ -81,9 +82,11 @@ extracted_file = formatter.standardize()
 descriptor = LLM_activities_descriptor(extracted_file, api_key=MY_API_KEY)
 used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
 
-from extracted_code import run_pipeline
+from extracted_code import run_pipeline  # noqa
 
-# description of each activity. A list of dictionaries like { "act_name" : ("description of the operation", "code of the operation")}
+# description of each activity. A list of dictionaries like {
+# "act_name" : ("description of the operation", "code of the
+# operation")}
 activities_description = descriptor.descript()
 # print(activities_description)
 activities_description_dict = (
@@ -123,7 +126,6 @@ current_columns_to_entities = {}
 loop = True
 activity_to_zoom = None
 while loop:
-
     # Create the activities found by the llm
     for act_name in activities_description_dict.keys():
         act_context, act_code = activities_description_dict[act_name]
@@ -146,9 +148,11 @@ while loop:
             changes, current_activities, get_args(), activity_to_zoom
         )
     else:
-        current_relations_column, current_columns, derivations_column = (
-            column_vision(changes, current_activities)
-        )
+        (
+            current_relations_column,
+            current_columns,
+            derivations_column,
+        ) = column_vision(changes, current_activities)
 
     # Create constraints in Neo4j
     neo4j.create_constraint(session=session)
@@ -197,9 +201,9 @@ while loop:
     del current_relations[:]
     del current_relations_column[:]
     del current_columns_to_entities
-    # print("if you want to zoom on one activity select the succession number of the desired activity, otherwise type 'N' ")
-    # answer = input(">")
-    # if answer == 'N':
+    # print("if you want to zoom on one activity select the succession
+    # number of the desired activity, otherwise type 'N' ") answer =
+    # input(">") if answer == 'N':
     loop = False
     # neo4j.delete_all()
     # else:

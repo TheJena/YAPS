@@ -24,12 +24,8 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-import sys
 
-import argparse
 import pandas as pd
-from graph.logger import CustomLogger
-import numpy as np
 
 
 def stratified_sample(df, frac):
@@ -39,7 +35,7 @@ def stratified_sample(df, frac):
     if frac > 0.0 and frac < 1.0:
         # Infer categorical columns for stratification
         stratify_columns = df.select_dtypes(
-            include=["object"]
+            include=["object"],
         ).columns.tolist()
 
         # Check if any class in stratify columns has fewer than 2 members
@@ -52,7 +48,8 @@ def stratified_sample(df, frac):
                 )
                 return stratified_df.reset_index(drop=True)
 
-        # If no suitable stratification column is found, fall back to random sampling
+        # If no suitable stratification column is found, fall back to
+        # random sampling
         sampled_df = df.sample(frac=frac).reset_index(drop=True)
     else:
         sampled_df = df
@@ -60,7 +57,6 @@ def stratified_sample(df, frac):
 
 
 def run_pipeline(args, tracker) -> None:
-
     input_path = args.dataset
 
     df = pd.read_csv(input_path, header=0)
@@ -90,8 +86,9 @@ def run_pipeline(args, tracker) -> None:
 
     df = df.rename({"two_year_recid": "label"}, axis=1)
 
-    # Reverse label for consistency with function defs: 1 means no recid (good), 0 means recid (bad)
-    df["label"] = [0 if l == 1 else 1 for l in df["label"]]
+    # Reverse label for consistency with function defs: 1 means no
+    # recid (good), 0 means recid (bad)
+    df["label"] = [0 if lab == 1 else 1 for lab in df["label"]]
 
     df["jailtime"] = (
         pd.to_datetime(df.c_jail_out) - pd.to_datetime(df.c_jail_in)
