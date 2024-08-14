@@ -86,7 +86,7 @@ scholar](https://scholar.google.com/scholar?as_ylo=2020&q=provenance+Missier+Tor
   Data-Centric AI. 32nd Symposium on Advanced Database Systems
   (SEBD2024), June 23-26, 2024, Villasimius, Sardinia, Italy, pp
   508-517. [URL:
-  https://sebd2024.unica.it/papers/paper11.pdf](https://sebd2024.unica.it/papers/paper11.pdf)
+  https://ceur-ws.org/Vol-3741/paper11.pdf](https://ceur-ws.org/Vol-3741/paper11.pdf)
 
 * Luca Gregori, Paolo Missier, Matthew Stidolph, Riccardo Torlone and
   Alessandro Wood. Design and Development of a Provenance Capture
