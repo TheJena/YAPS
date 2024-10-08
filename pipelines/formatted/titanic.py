@@ -24,43 +24,40 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from os.path import join as join_path, isdir, isfile
-from subprocess import check_output
-from black import __path__ as BLACK_PATH, __version__ as BLACK_VERSION
-import random
+import pandas as pd
 
 
-def black(pycode, line_length=79, target_version="py312"):
-    """The uncompromising code formatter"""
-    assert isdir(BLACK_PATH[0]) and isfile(
-        join_path(BLACK_PATH[0], "__main__.py")
-    ), f"{BLACK_PATH=}"
-    assert int(BLACK_VERSION.split(".")[0]) >= 24, f"{BLACK_VERSION=}"
+def run_pipeline(args, tracker) -> None:
+    input_path = args.dataset
 
-    return check_output(
-        [
-            "black",
-            "--code",
-            pycode,
-            f"--line-length={line_length!s}",
-            f"--required-version={BLACK_VERSION}",
-            "--safe",
-            f"--target-version={target_version}",
-        ],
-        text=True,
-    )
+    # Load data from CSV file into a Pandas DataFrame
+    df = pd.read_csv(input_path, header=0)
 
+    # Randomly sample a fraction of the data if specified
+    if args.frac != 0.0:
+        df = df.sample(frac=args.frac)
 
-def i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
-    *args, **kwargs
-):
-    raise NotImplementedError()
+    # Subscribe dataframe to tracker for provenance analysis
+    df = tracker.subscribe(df)
+    tracker.analyze_changes(df)
 
+    # Drop unnecessary columns from the DataFrame
+    cols = ["Name", "Ticket", "Cabin"]
+    df = df.drop(cols, axis=1)
+    tracker.analyze_changes(df)
 
-def keep_random_element_in_place(lst):
-    if not lst or len(lst) == 0:
-        return []  # Return None if the list is empty
-    random_element = random.choice(lst)
-    lst.clear()
-    lst.append(random_element)
-    return random_element
+    # Remove rows with missing values from the DataFrame
+    df = df.dropna()
+    tracker.analyze_changes(df)
+
+    # One-hot encode categorical variables and drop original columns
+    cols = ["Pclass", "Sex", "Embarked"]
+    # tracker.dataframe_tracking = False  # uncomment to have the missing link (?)
+    for i, col in enumerate(cols):
+        dummies = pd.get_dummies(df[col])
+        df_dummies = dummies.add_prefix(col + "_")
+        df = df.join(df_dummies)
+        df = df.drop([col], axis=1)
+    tracker.analyze_changes(df)
+
+    return df

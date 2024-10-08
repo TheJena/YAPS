@@ -28,34 +28,6 @@ import numpy as np
 import pandas as pd
 
 
-def stratified_sample(df, frac):
-    """
-    Perform stratified sampling on a DataFrame.
-    """
-    if frac > 0.0 and frac < 1.0:
-        # Infer categorical columns for stratification
-        stratify_columns = df.select_dtypes(
-            include=["object"],
-        ).columns.tolist()
-
-        # Check if any class in stratify columns has fewer than 2 members
-        for col in stratify_columns:
-            value_counts = df[col].value_counts()
-            if value_counts.min() >= 2:
-                # Perform stratified sampling for this column
-                stratified_df = df.groupby(col, group_keys=False).apply(
-                    lambda x: x.sample(frac=frac)
-                )
-                return stratified_df.reset_index(drop=True)
-
-        # If no suitable stratification column is found, fall back to
-        # random sampling
-        sampled_df = df.sample(frac=frac).reset_index(drop=True)
-    else:
-        sampled_df = df
-    return sampled_df
-
-
 def run_pipeline(args, tracker) -> None:
     input_path = args.dataset
 
@@ -69,7 +41,9 @@ def run_pipeline(args, tracker) -> None:
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
+    tracker.analyze_changes(df)
 
+    # Replace categorical values
     df = df.replace(
         {
             "checking": {
@@ -144,40 +118,49 @@ def run_pipeline(args, tracker) -> None:
             "label": {2: 0},
         }
     )
+    tracker.analyze_changes(df)
 
-    status_mapping = {
-        "A91": "divorced",
-        "A92": "divorced",
-        "A93": "single",
-        "A95": "single",
-    }
+    # Create a new column for marital status
+    df["status"] = (
+        df["personal_status"]
+        .map(
+            {
+                "A91": "divorced",
+                "A92": "divorced",
+                "A93": "single",
+                "A95": "single",
+            }
+        )
+        .fillna("married")
+    )
+    tracker.analyze_changes(df)
 
-    df["status"] = df["personal_status"].map(status_mapping).fillna("married")
-
-    # Translate gender values
+    # Translate gender
     df["personal_status"] = np.where(
         df.personal_status == "A92",
         0,
         np.where(df.personal_status == "A95", 0, 1),
     )
-
     df = df.drop(["personal_status"], axis=1)
+    tracker.analyze_changes(df)
 
+    # One-hot encoding for categorical features
     columns = [
         "checking",
         "credit_history",
-        "purpose",
-        "savings",
         "employment",
-        "other_debtors",
-        "property",
-        "other_inst",
         "housing",
         "job",
+        "other_debtors",
+        "other_inst",
+        "property",
+        "purpose",
+        "savings",
     ]
-
-    for i, col in enumerate(columns):
-        dummies = pd.get_dummies(df[col])
-        df_dummies = dummies.add_prefix(col + "_")
+    for col in columns:
+        df_dummies = pd.get_dummies(df[col], prefix=f"{col}_")
         df = df.join(df_dummies)
         df = df.drop([col], axis=1)
+    tracker.analyze_changes(df)
+
+    return df

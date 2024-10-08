@@ -60,11 +60,8 @@ def run_pipeline(args, tracker) -> None:
         "pedigree",
     ]
     X = p[feature_cols]  # Features
-    X_train = tracker.subscribe(X)
-
     Y = p.label  # Target variable
-
-    # Subscribe dataframe
+    X = tracker.subscribe(X)  # Subscribe dataframe
 
     # Split dataset into training set and test set
     X_train, X_test, y_train, y_test = train_test_split(

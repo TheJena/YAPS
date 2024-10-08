@@ -1,21 +1,63 @@
-version: '3.7'
-
 services:
   neo4j:
-    image: neo4j:5.7.0-community
+    image: neo4j:community
+    container_name: neo4j
     restart: unless-stopped
     volumes:
       - neo4j_data:/data
     environment:
-      - NEO4J_AUTH=${MY_NEO4J_USERNAME}/${MY_NEO4J_PASSWORD}
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
-      - NEO4JLABS_PLUGINS=["graph-data-science", "apoc"]
-      - NEO4J_dbms_directories_import=/
-      - NEO4J_dbms_security_allow__csv__import__from__file__urls=true
+      - NEO4J_AUTH=${MY_NEO4J_USERNAME}/${MY_NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["graph-data-science", "apoc"]
+      - NEO4J_client_allow__telemetry=false
+      - NEO4J_db_temporal_timezone=Europe/Rome
+      - NEO4J_dbms_usage__report_enabled=false
+      - NEO4J_initial_dbms_default__database=YAPS
+      - NEO4J_server_https_enabled=false
+      - NEO4J_server_jvm_additional="-XX:+ExitOnOutOfMemoryError"
+      - NEO4J_server_logs_debug_enabled=false
+      - NEO4J_server_logs_gc_enabled=true
+      - NEO4J_server_logs_gc_rotation_keep__number=1
+      - NEO4J_server_logs_gc_rotation_size=128M
     ports:
-      - "7473:7473" # https
       - "7474:7474" # http
       - "7687:7687" # bolt
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+      restart_policy:
+        delay: 5s
+        window: 25s
+    cpu_count: 4
+    platform: linux/amd64
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 48G
+      restart_policy:
+        delay: 5s
+        window: 25s
+    cpu_count: 32
+    platform: linux/amd64
 
 volumes:
   neo4j_data:
+    driver: local
+    driver_opts:
+      o: "bind,rw"
+      type: none
+      device: ${MY_NEO4J_DATA_DIR}
+  ollama_data:
+    driver: local
+    driver_opts:
+      o: "bind,rw"
+      type: none

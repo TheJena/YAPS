@@ -53,7 +53,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/compas_pipeline.py",
+        default="pipelines/raw/compas.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
@@ -76,7 +76,7 @@ def get_args() -> argparse.Namespace:
 
 
 # Standardize the structure of the file in a way that provenance is tracked
-formatter = LLM_formatter(get_args().pipeline, api_key=MY_API_KEY)
+formatter = LLM_formatter(get_args().pipeline)
 # Standardized file given by the LLM
 extracted_file = formatter.standardize()
 descriptor = LLM_activities_descriptor(extracted_file, api_key=MY_API_KEY)

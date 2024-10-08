@@ -1,6 +1,6 @@
 # YAPS
 **Yet Another Provenance Suite**, formerly known as
-[DPDS_LLM](https://github.com/pasqualeleonardolazzaro/DPDS_LLM), is a
+[PROLIT](https://github.com/pasqualeleonardolazzaro/PROLIT), is a
 Data Provenance for Data Science suite powered by LLMs.
 
 This library aims at capturing fine-grained
@@ -39,7 +39,6 @@ To use the provenance suite, follow these steps:
                 --python=/usr/bin/python3         \
                 --creator=venv                    \
                 --download                        \
-                --prompt='(YAPS) '                \
                 YAPS
    ```
 
@@ -53,21 +52,35 @@ To use the provenance suite, follow these steps:
    ```
    grep -HonrE "MY_[A-Z4_]+" . | fgrep -v "/.git/"
 
-   # MY_API_KEY                            ~> Groq token
    # MY_NEO4J_USERNAME / MY_NEO4J_PASSWORD ~> Neo4j credentials
+   # MY_NEO4J_DATA_DIR                     ~> where Neo4j will store graphs
+   # MY_OLLAMA_DATA_DIR                    ~> where Ollama will store models
    ```
 
-1. Start Neo4j, e.g. via Docker:
+1. Start Neo4j and Ollama, e.g. via Docker Compose:
 
-   `cd ~/YAPS/neo4j && docker compose up -d`
+   `docker compose --project-directory ~/YAPS/neo4j up --detach`
+
+1. Depending on the model size, you may would like to preload it in
+   main memory
+
+   _Optionally_, pull from the [library](https://ollama.com/library)
+   the LLM of choice, e.g., Llama v3.1 with 70B parameters will use
+   about 41GB of RAM
+
+   `docker exec --interactive --tty ollama ollama pull llama3.1:70b`
+
+1. Run the provided example:
+
+   `python3 main.py  # -h/--help for more`
 
 1. Access the Neo4j web interface
 ([http://localhost:7474/browser/](http://localhost:7474/browser/))
-with a web browser
+with a web browser and inspect the collected provenance
 
-1. Stop Neo4j
+1. Stop Neo4j and Ollama, e.g. via Docker Compose
 
-   `cd ~/YAPS/neo4j && docker compose down -v`
+   `docker compose --project-directory ~/YAPS/neo4j down --volumes`
 
 ## Related Literature
 
@@ -79,7 +92,7 @@ scholar](https://scholar.google.com/scholar?as_ylo=2020&q=provenance+Missier+Tor
   Torlone. 2024. Supporting Better Insights of Data Science Pipelines
   with Fine-grained Provenance. ACM Trans. Database Syst. 49, 2,
   Article 6 (June 2024), 42 pages. [DOI:
-  10.1145/3644385](https://doi.org/10.1145/3644385)    
+  10.1145/3644385](https://doi.org/10.1145/3644385)
 
 * Paolo Missier and Riccardo Torlone. From why-provenance to
   why+provenance: Towards addressing deep data explanations in
@@ -94,7 +107,7 @@ scholar](https://scholar.google.com/scholar?as_ylo=2020&q=provenance+Missier+Tor
   on Data Engineering Workshops (ICDEW), Utrecht, Netherlands, May
   13-17, 2024, pp. 285-290. [DOI:
   10.1109/ICDEW61823.2024.00042](https://doi.org/10.1109/ICDEW61823.2024.00042)
-  
+
 * Adriane Chapman, Luca Lauro, Paolo Missier and Riccardo
   Torlone. 2022. DPDS: assisting data science with data
   provenance. Proc. VLDB Endow. 15, 12 (August 2022), 3614–3617. [DOI:
@@ -119,7 +132,7 @@ scholar](https://scholar.google.com/scholar?as_ylo=2020&q=provenance+Missier+Tor
   preprocessing pipelines in data science. Proc. VLDB Endow. 14, 4
   (December 2020), 507–520. [DOI:
   10.14778/3436905.3436911](https://doi.org/10.14778/3436905.3436911)
-  
+
 
 ## Credits
    - [Luca Lauro](https://github.com/LucaLauro) (UNIROMA3) which wrote
@@ -132,7 +145,7 @@ scholar](https://scholar.google.com/scholar?as_ylo=2020&q=provenance+Missier+Tor
      Lazzaro](https://github.com/pasqualeleonardolazzaro) &
      [Marialaura Lazzaro](https://github.com/marialauraLazz)
      (UNIROMA3) which extended and produced the [third
-     version](https://github.com/pasqualeleonardolazzaro/DPDS_LLM) of
+     version](https://github.com/pasqualeleonardolazzaro/PROLIT) of
      the suite
 
 ## LICENSE
