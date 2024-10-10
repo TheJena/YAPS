@@ -57,6 +57,7 @@ def column_vision(changes, current_activities):
         activity = current_activities[act - 1]
         df1 = changes[act]["before"]
         df2 = changes[act]["after"]
+        activity['runtime_exceptions'] = "No exceptions occurred"
         activity_description, activity_code = (
             activity["context"],
             activity["code"],

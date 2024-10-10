@@ -42,6 +42,7 @@ def create_activity(
     code: str = None,
     code_line: str = None,
     tracker_id: str = None,
+    exception_text: str = None,
 ) -> str:
     """
     Create a provenance activity and add it to the current activities list.
@@ -64,22 +65,25 @@ def create_activity(
     act_id = constants.NAMESPACE_ACTIVITY + str(uuid.uuid4())
 
     attributes = {
-        "id": act_id,
-        "function_name": function_name,
-        "context": context,
-        "used_features": used_features or [],
-        "description": description,
-        "generated_features": generated_features,
-        "generated_records": generated_records,
-        "deleted_used_features": deleted_used_features,
-        "deleted_records": deleted_records,
         "code": code,
         "code_line": code_line,
+        "context": context,
+        "deleted_used_features": deleted_used_features,
+        "description": description,
+        "function_name": function_name,
+        "generated_features": generated_features,
+        "generated_records": generated_records,
+        "id": act_id,
+        "runtime_exceptions": "An exception occured here or before "
+        + "("
+        + exception_text
+        + ")",
         "tracker_id": (
             constants.NAMESPACE_TRACKER + tracker_id  #
             if tracker_id is not None  #
             else None
         ),
+        "used_features": used_features or [],
     }
 
     if other_attributes is not None:

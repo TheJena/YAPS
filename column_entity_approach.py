@@ -75,6 +75,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
         activity = current_activities[act - 1]
         df1 = changes[act]["before"]
         df2 = changes[act]["after"]
+        activity["runtime_exceptions"] = "No exceptions occurred"
 
         activity_description, activity_code = (
             activity["context"],
@@ -229,9 +230,9 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                                 idx_old_col,
                                 col,
                             )
-                            current_columns[
-                                (val_old_col, idx_old_col, col)
-                            ] = old_column
+                            current_columns[(val_old_col, idx_old_col, col)] = (
+                                old_column
+                            )
                             current_columns_to_entities[old_column["id"]] = []
                         else:
                             old_column = current_columns[

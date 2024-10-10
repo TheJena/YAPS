@@ -30,6 +30,7 @@ from LLM.LLM_formatter import LLM_formatter
 from SECRET import MY_API_KEY, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from column_approach import column_vision
 from column_entity_approach import column_entitiy_vision
+from extracted_code import run_pipeline
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import create_activity
 from tracking.tracking import ProvenanceTracker
@@ -39,30 +40,43 @@ from utils import (
 import argparse
 
 
+def wrapper_run_pipeline(args, tracker):
+    try:
+        # Esegui la funzione run_pipeline; potresti modificare
+        # run_pipeline per restituire lo stato parziale se possibile
+        run_pipeline(args, tracker)  # La funzione non viene modificata
+    except Exception as e:
+        exception_type = type(e).__name__
+        exception_message = str(e)
+        print(f"Eccezione catturata: {exception_type} - {exception_message}")
+        return f"{exception_type} - {exception_message}"
+    return " "
+
+
 def get_args() -> argparse.Namespace:
     """
     Parses command line arguments
     """
-    parser = argparse.ArgumentParser(description="Census Pipeline")
+    parser = argparse.ArgumentParser(description="TODO")
     parser.add_argument(
         "--dataset",
         type=str,
-        default="datasets/compas.csv",
+        default="datasets/car.csv",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
         "--pipeline",
         type=str,
-        default="pipelines/raw/compas.py",
+        default="pipelines/raw/car.py",
         help="Relative path to the dataset file",
     )
     parser.add_argument(
-        "--frac", type=float, default=1, help="Sampling fraction [0.0 - 1.0]"
+        "--frac", type=float, default=0.1, help="Sampling fraction [0.0 - 1.0]"
     )
     parser.add_argument(
         "--granularity_level",
         type=int,
-        default=1,
+        default=3,
         help="Granularity level: 1, 2 or 3",
     )
     parser.add_argument(
@@ -79,10 +93,9 @@ def get_args() -> argparse.Namespace:
 formatter = LLM_formatter(get_args().pipeline)
 # Standardized file given by the LLM
 extracted_file = formatter.standardize()
+
 descriptor = LLM_activities_descriptor(extracted_file, api_key=MY_API_KEY)
 used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
-
-from extracted_code import run_pipeline  # noqa
 
 # description of each activity. A list of dictionaries like {
 # "act_name" : ("description of the operation", "code of the
@@ -105,7 +118,7 @@ session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
 
 # running the preprocessing pipeline
-run_pipeline(get_args(), tracker)
+exception = wrapper_run_pipeline(get_args(), tracker)
 
 # Dictionary of all the df before and after the operations
 changes = tracker.changes
@@ -130,7 +143,10 @@ while loop:
     for act_name in activities_description_dict.keys():
         act_context, act_code = activities_description_dict[act_name]
         activity = create_activity(
-            function_name=act_name, context=act_context, code=act_code
+            function_name=act_name,
+            context=act_context,
+            code=act_code,
+            exception_text=exception,
         )
         current_activities.append(activity)
 
