@@ -31,7 +31,7 @@ from langchain_community.chat_models import ChatOllama
 from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
-from os.path import abspath, isfile
+from os.path import abspath
 from re import DOTALL, search
 from SECRET import MY_API_KEY
 from textwrap import dedent
@@ -93,7 +93,7 @@ class Ollama(ChatLLM):
                 )
             raise e
         else:
-            assert response.lower() == "pong", f"{response=}"
+            assert "pong" in response.lower(), f"{response=}"
 
         self.chain = self.prompt | self.chat | self.parser
 
@@ -102,10 +102,10 @@ class Ollama(ChatLLM):
 
 
 class LLM_formatter:
-    def __init__(self, file_pipeline):
+    def __init__(self, io_obj):
         # Template per descrivere il grafo e suggerire miglioramenti
         # alla pipeline di pulizia dei dati
-        PIPELINE_STANDARDIZER_TEMPLATE = (
+        PIPELINE_FORMATTER_TEMPLATE = (
             # Do not drop the shebang sequence, the encoding declaration and
             # the copyright and license notices if present.
             dedent(
@@ -216,7 +216,8 @@ class LLM_formatter:
                 kmeans.fit(X_train_norm)
                 tracker.analyze_changes(df)
                 
-                # Scatter plot of longitude vs latitude with hue as cluster labels
+                # Scatter plot of longitude vs latitude with hue as
+                # cluster labels
                 sns.scatterplot(
                     data=X_train,
                     hue=kmeans.labels_,
@@ -261,7 +262,7 @@ class LLM_formatter:
 
         self.prompt = PromptTemplate(
             input_variables=["pipeline_content", "question"],
-            template=PIPELINE_STANDARDIZER_TEMPLATE,
+            template=PIPELINE_FORMATTER_TEMPLATE,
         )
 
         self.chat_llm = (
@@ -271,12 +272,7 @@ class LLM_formatter:
         )
 
         # cleaning pipeline in text format
-        self.pipeline_content = self.file_to_text(file_pipeline)
-
-    def file_to_text(self, path):
-        path = abspath(path)
-        assert isfile(path), f"{path=}"
-        return black(open(path).read())
+        self.pipeline_content = black(io_obj.read())
 
     def standardize(self) -> str:
         response = self.chat_llm.invoke(

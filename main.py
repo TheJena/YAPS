@@ -24,20 +24,27 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from LLM.LLM_activities_descriptor import LLM_activities_descriptor
-from LLM.LLM_activities_used_columns import LLM_activities_used_columns
-from LLM.LLM_formatter import LLM_formatter
-from SECRET import MY_API_KEY, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
+from argparse import (
+    ArgumentDefaultsHelpFormatter,
+    ArgumentParser,
+    FileType,
+    Namespace,
+    SUPPRESS,
+)
 from column_approach import column_vision
 from column_entity_approach import column_entitiy_vision
 from extracted_code import run_pipeline
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import create_activity
+from LLM.LLM_activities_descriptor import LLM_activities_descriptor
+from LLM.LLM_activities_used_columns import LLM_activities_used_columns
+from LLM.LLM_formatter import LLM_formatter
+from os.path import abspath, isfile
+from SECRET import MY_API_KEY, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from tracking.tracking import ProvenanceTracker
 from utils import (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
 )
-import argparse
 
 
 def wrapper_run_pipeline(args, tracker):
@@ -53,35 +60,67 @@ def wrapper_run_pipeline(args, tracker):
     return " "
 
 
-def get_args() -> argparse.Namespace:
+def parsed_args() -> Namespace:
     """
     Parses command line arguments
     """
-    parser = argparse.ArgumentParser(description="TODO")
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="datasets/car.csv",
-        help="Relative path to the dataset file",
+    parser = ArgumentParser(
+        allow_abbrev=True,
+        formatter_class=ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--pipeline",
-        type=str,
-        default="pipelines/raw/car.py",
-        help="Relative path to the dataset file",
+        "-i",
+        "--input-data",
+        default=open("datasets/car.csv"),
+        dest="dataset",
+        metavar="file.csv",
+        type=FileType("r"),
     )
     parser.add_argument(
-        "--frac", type=float, default=0.1, help="Sampling fraction [0.0 - 1.0]"
+        "-r",
+        "--raw-pipeline",
+        default=open("pipelines/raw/car.py"),
+        dest="raw_pipeline",
+        metavar="file.py",
+        type=FileType("r"),
     )
     parser.add_argument(
+        "-f",
+        "--formatted-pipeline",
+        default=open("pipelines/raw/car.py"),
+        dest="formatted_pipeline",
+        help="LLM_formatter($raw_pipeline)",
+        metavar="file.py",
+        type=FileType("r"),
+    )
+    parser.add_argument(
+        "-d",
+        "--pipeline-description",
+        default=open("pipelines/descriptions/car.py"),
+        dest="pipeline_description",
+        help="LLM_activities_descriptor(LLM_formatter($raw_pipeline))",
+        metavar="file.py",
+        type=FileType("r"),
+    )
+
+    parser.add_argument(
+        "-s",
+        "--frac",
+        default=0.1,
+        help="Sampling fraction [0.0 - 1.0]",
+        type=float,
+    )
+    parser.add_argument(
+        "-g",
         "--granularity_level",
-        type=int,
         default=3,
         help="Granularity level: 1, 2 or 3",
+        type=int,
     )
     parser.add_argument(
+        "-e",
         "--entity_type_level",
-        type=int,
+        choices=[1, 2],
         default=2,
         help="Entity level: 1 for entities and columns and 2 for columns",
     )
@@ -89,19 +128,28 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# Standardize the structure of the file in a way that provenance is tracked
-formatter = LLM_formatter(get_args().pipeline)
-# Standardized file given by the LLM
-extracted_file = formatter.standardize()
+cli_args = parsed_args()
 
-descriptor = LLM_activities_descriptor(extracted_file, api_key=MY_API_KEY)
-used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
+if cli_args.formatted_pipeline is None:
+    # Standardize the structure of the file in a way that provenance
+    # is tracked
+    formatter = LLM_formatter(cli_args.raw_pipeline)
+    # Standardized file given by the LLM
+    extracted_file = formatter.standardize()
+else:
+    extracted_file = cli_args.formatted_pipeline
 
-# description of each activity. A list of dictionaries like {
-# "act_name" : ("description of the operation", "code of the
-# operation")}
-activities_description = descriptor.descript()
-# print(activities_description)
+if cli_args.pipeline_description is None:
+    descriptor = LLM_activities_descriptor(extracted_file)
+
+    # description of each activity. A list of dictionaries like {
+    # "act_name" : ("description of the operation", "code of the
+    # operation")}
+    activities_description = descriptor.descript()
+else:
+    activities_description = cli_args.pipeline_description.read()
+
+
 activities_description_dict = (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
         activities_description.replace("pipeline_operations = ", "")
@@ -118,7 +166,7 @@ session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
 
 # running the preprocessing pipeline
-exception = wrapper_run_pipeline(get_args(), tracker)
+exception = wrapper_run_pipeline(cli_args, tracker)
 
 # Dictionary of all the df before and after the operations
 changes = tracker.changes
@@ -150,7 +198,7 @@ while loop:
         )
         current_activities.append(activity)
 
-    if get_args().entity_type_level == 1:
+    if cli_args.entity_type_level == 1:
         (
             current_entities,
             current_columns,
@@ -161,7 +209,7 @@ while loop:
             current_columns_to_entities,
             entities_to_keep,
         ) = column_entitiy_vision(
-            changes, current_activities, get_args(), activity_to_zoom
+            changes, current_activities, cli_args, activity_to_zoom
         )
     else:
         (
@@ -175,7 +223,7 @@ while loop:
 
     # Add activities, entities, derivations, and relations to the Neo4j Graph
     neo4j.add_activities(current_activities, session)
-    if get_args().granularity_level == 1:
+    if cli_args.granularity_level == 1:
         filtered_list = [
             entity
             for entity in current_entities.values()

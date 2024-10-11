@@ -22,6 +22,7 @@ black-view:
 clean:
 	clear
 	rm -vf .DS_Store .markdown-preview.html extracted_code.py
+	ln -vfs pipelines/formatted/empty.py extracted_code.py
 	find . -type f -iname "*~"          -exec rm   -fv {} \;
 	find . -type f -iname "*.pyc"       -exec rm   -fv {} \;
 	find . -type d -iname "__pycache__" -exec rmdir -v {} \;

@@ -84,6 +84,7 @@ def run_pipeline(args, tracker) -> None:
     df["cluster"] = kmeans.predict(
         preprocessing.normalize(df[["latitude", "longitude"]])
     )
+    tracker.analyze_changes(df)
 
     # Sample 50 points from each cluster
     sampled_df_list = []
@@ -107,6 +108,7 @@ def run_pipeline(args, tracker) -> None:
 
     # Remove rows in df that are not present in sampled_df using drop
     df = df.drop(indices_to_drop)
+    tracker.analyze_changes(df)
 
     # Plot scatterplot of longitude vs latitude with hue as cluster labels
     sns.scatterplot(data=df, x="longitude", y="latitude", hue="cluster")
