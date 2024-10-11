@@ -24,25 +24,14 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from langchain.chains import LLMChain
+from constants import USE_GROQ, USE_OLLAMA
 from langchain.prompts import PromptTemplate
-from langchain_groq import ChatGroq
-import re
+from LLM.LLM_formatter import ChatLLM, Groq, Ollama
+from re import DOTALL, search
 
 
 class LLM_activities_used_columns:
-    def __init__(
-        self,
-        api_key: str,
-        temperature: float = 0,
-        model_name: str = "llama3-70b-8192",
-    ):
-        self.chat = ChatGroq(
-            temperature=temperature,
-            groq_api_key=api_key,
-            model_name=model_name,
-        )
-
+    def __init__(self):
         # Template per descrivere il grafo e suggerire miglioramenti
         # alla pipeline di pulizia dei dati
         PIPELINE_STANDARDIZER_TEMPLATE = """
@@ -60,35 +49,37 @@ class LLM_activities_used_columns:
             Example of answer: ```["column1", "column2", "column3"]```
             Write the list inside ``` ```
 
-            dataframe before:{df_before}
-            dataframe after:{df_after}
+            dataframe before: {df_before}
+            dataframe after: {df_after}
 
-            code:{code}
-            description:{description}
+            code: {code}
+            description: {description}
         """
 
         self.prompt = PromptTemplate(
+            input_variables=["code", "description", "df_after", "df_before"],
             template=PIPELINE_STANDARDIZER_TEMPLATE,
-            input_variables=["df_before", "df_after", "code", "description"],
         )
 
-        self.chat_chain = LLMChain(
-            llm=self.chat,
-            prompt=self.prompt,
-            verbose=False,
+        self.chat_llm = (
+            Ollama(self.prompt)
+            if USE_OLLAMA
+            else (Groq(self.prompt) if USE_GROQ else ChatLLM())
         )
 
     def give_columns(self, df_before, df_after, code, description) -> str:
-        response = self.chat_chain.invoke(
+        response = self.chat_llm.invoke(
             {
-                "df_before": df_before,
-                "df_after": df_after,
                 "code": code,
                 "description": description,
+                "df_after": df_after,
+                "df_before": df_before,
             }
         )
         # Use regular expression to find text between triple quotes
-        extracted_text = re.search("```(.*?)```", response["text"], re.DOTALL)
+        extracted_text = search("```(.*?)```", response, DOTALL)
 
         if extracted_text:
-            return extracted_text.group(1)
+            return extracted_text.group(1).removeprefix("python\n")
+        else:
+            print("No triple-quoted text found.")
