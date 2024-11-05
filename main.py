@@ -24,13 +24,7 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from argparse import (
-    ArgumentDefaultsHelpFormatter,
-    ArgumentParser,
-    FileType,
-    Namespace,
-    SUPPRESS,
-)
+
 from column_approach import column_vision
 from column_entity_approach import column_entitiy_vision
 from extracted_code import run_pipeline
@@ -39,12 +33,9 @@ from graph.structure import create_activity
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from LLM.LLM_formatter import LLM_formatter
-from os.path import abspath, isfile
-from SECRET import MY_API_KEY, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
+from SECRET import MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from tracking.tracking import ProvenanceTracker
-from utils import (
-    i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
-)
+from utils import load, parsed_args
 
 
 def wrapper_run_pipeline(args, tracker):
@@ -60,74 +51,6 @@ def wrapper_run_pipeline(args, tracker):
     return " "
 
 
-def parsed_args() -> Namespace:
-    """
-    Parses command line arguments
-    """
-    parser = ArgumentParser(
-        allow_abbrev=True,
-        formatter_class=ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "-i",
-        "--input-data",
-        default=open("datasets/car.csv"),
-        dest="dataset",
-        metavar="file.csv",
-        type=FileType("r"),
-    )
-    parser.add_argument(
-        "-r",
-        "--raw-pipeline",
-        default=open("pipelines/raw/car.py"),
-        dest="raw_pipeline",
-        metavar="file.py",
-        type=FileType("r"),
-    )
-    parser.add_argument(
-        "-f",
-        "--formatted-pipeline",
-        default=open("pipelines/raw/car.py"),
-        dest="formatted_pipeline",
-        help="LLM_formatter($raw_pipeline)",
-        metavar="file.py",
-        type=FileType("r"),
-    )
-    parser.add_argument(
-        "-d",
-        "--pipeline-description",
-        default=open("pipelines/descriptions/car.py"),
-        dest="pipeline_description",
-        help="LLM_activities_descriptor(LLM_formatter($raw_pipeline))",
-        metavar="file.py",
-        type=FileType("r"),
-    )
-
-    parser.add_argument(
-        "-s",
-        "--frac",
-        default=0.1,
-        help="Sampling fraction [0.0 - 1.0]",
-        type=float,
-    )
-    parser.add_argument(
-        "-g",
-        "--granularity_level",
-        default=3,
-        help="Granularity level: 1, 2 or 3",
-        type=int,
-    )
-    parser.add_argument(
-        "-e",
-        "--entity_type_level",
-        choices=[1, 2],
-        default=2,
-        help="Entity level: 1 for entities and columns and 2 for columns",
-    )
-
-    return parser.parse_args()
-
-
 cli_args = parsed_args()
 
 if cli_args.formatted_pipeline is None:
@@ -135,7 +58,7 @@ if cli_args.formatted_pipeline is None:
     # is tracked
     formatter = LLM_formatter(cli_args.raw_pipeline)
     # Standardized file given by the LLM
-    extracted_file = formatter.standardize()
+    extracted_file = formatter.standardize(cli_args.formatted_pipeline)
 else:
     extracted_file = cli_args.formatted_pipeline
 
@@ -145,17 +68,17 @@ if cli_args.pipeline_description is None:
     # description of each activity. A list of dictionaries like {
     # "act_name" : ("description of the operation", "code of the
     # operation")}
-    activities_description = descriptor.descript()
+    activities_descr_dict = descriptor.descript(cli_args.pipeline_description)
 else:
-    activities_description = cli_args.pipeline_description.read()
+    activities_descr_dict = load(cli_args.pipeline_description)
 
 
-activities_description_dict = (
-    i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
-        activities_description.replace("pipeline_operations = ", "")
-    )
-)
-# print(activities_description_dict)
+used_columns_giver = LLM_activities_used_columns()
+# print(
+#     used_columns_giver.give_columns(
+#         df_before, df_after, code, description
+#     )
+# )
 
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
@@ -172,24 +95,24 @@ exception = wrapper_run_pipeline(cli_args, tracker)
 changes = tracker.changes
 # print(changes)
 
-current_activities = []
-current_entities = {}
-current_columns = {}
-current_derivations = []
-current_entities_column = []
-entities_to_keep = []
-derivations = []
-derivations_column = []
-current_relations = []
-current_relations_column = []
-current_columns_to_entities = {}
+current_activities = list()
+current_entities = dict()
+current_columns = dict()
+current_derivations = list()
+current_entities_column = list()
+entities_to_keep = list()
+derivations = list()
+derivations_column = list()
+current_relations = list()
+current_relations_column = list()
+current_columns_to_entities = dict()
 
 loop = True
 activity_to_zoom = None
 while loop:
     # Create the activities found by the llm
-    for act_name in activities_description_dict.keys():
-        act_context, act_code = activities_description_dict[act_name]
+    for act_name in activities_descr_dict.keys():
+        act_context, act_code = activities_descr_dict[act_name]
         activity = create_activity(
             function_name=act_name,
             context=act_context,
@@ -198,7 +121,7 @@ while loop:
         )
         current_activities.append(activity)
 
-    if cli_args.entity_type_level == 1:
+    if cli_args.prov_entity_level:
         (
             current_entities,
             current_columns,
@@ -211,7 +134,7 @@ while loop:
         ) = column_entitiy_vision(
             changes, current_activities, cli_args, activity_to_zoom
         )
-    else:
+    elif cli_args.prov_column_level:
         (
             current_relations_column,
             current_columns,
@@ -238,15 +161,15 @@ while loop:
     neo4j.add_relations_columns(current_relations_column)
     neo4j.add_derivations_columns(derivations_column)
 
-    relations = []
+    relations = list()
     for act in current_columns_to_entities.keys():
-        relation = []
+        relation = list()
         relation.append(act)
         relation.append(current_columns_to_entities[act])
         relations.append(relation)
     neo4j.add_relation_entities_to_column(relations)
 
-    pairs = []
+    pairs = list()
     for i in range(len(current_activities) - 1):
         pairs.append(
             {

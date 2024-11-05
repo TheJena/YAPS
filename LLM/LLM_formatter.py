@@ -24,18 +24,18 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from constants import LLM_NAME, USE_GROQ, USE_OLLAMA
 from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_community.chat_models import ChatOllama
 from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
+from logging import warning
 from os.path import abspath
 from re import DOTALL, search
 from SECRET import MY_API_KEY
 from textwrap import dedent
-from utils import black
+from utils import black, parsed_args
 
 
 class ChatLLM(object):
@@ -48,7 +48,7 @@ class Groq(ChatLLM):
         self,
         prompt,
         groq_api_key: str = MY_API_KEY,
-        model_name: str = LLM_NAME,
+        model_name: str = parsed_args().llm_name,
         temperature: float = 0,
     ):
         self.prompt = prompt
@@ -69,7 +69,7 @@ class Groq(ChatLLM):
 
 
 class Ollama(ChatLLM):
-    def __init__(self, prompt, model=LLM_NAME):
+    def __init__(self, prompt, model=parsed_args().llm_name):
         self.prompt = prompt
         self.chat = ChatOllama(
             # be aware that adding parameters here will probably
@@ -89,7 +89,7 @@ class Ollama(ChatLLM):
                 raise SystemExit(
                     "The model was not found; please check for typos "
                     "by running:\n\tdocker exec --interactive --tty ollama "
-                    f"ollama pull {LLM_NAME}"
+                    f"ollama pull {parsed_args().llm_name}"
                 )
             raise e
         else:
@@ -267,14 +267,14 @@ class LLM_formatter:
 
         self.chat_llm = (
             Ollama(self.prompt)
-            if USE_OLLAMA
-            else (Groq(self.prompt) if USE_GROQ else ChatLLM())
+            if parsed_args().use_ollama
+            else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
 
         # cleaning pipeline in text format
         self.pipeline_content = black(io_obj.read())
 
-    def standardize(self) -> str:
+    def standardize(self, io_obj=None) -> str:
         response = self.chat_llm.invoke(
             {
                 "pipeline_content": self.pipeline_content,
@@ -287,14 +287,19 @@ class LLM_formatter:
         if extracted_text:
             # Get the matched group from the search
             code_to_write = extracted_text.group(1).removeprefix("python\n")
-            # Specify the filename
-            filename = "extracted_code.py"
 
-            # Write the extracted text to a file
-            with open(filename, "w") as file:
-                file.write(black(code_to_write))
-            print(f"Code has been successfully written to {filename}")
-            print(abspath(filename))
-            return str(abspath(filename))
+            # print(code_to_write)
+            code_to_write = black(code_to_write)
+
+            if io_obj is None:
+                io_obj = open("extracted_code.py", "w")
+
+            io_obj.write(code_to_write)
+            io_obj.close()
+
+            print(
+                f"Code has been successfully written to {abspath(io_obj.name)}"
+            )
+            return str(abspath(io_obj.name))
         else:
             print("No triple-quoted text found.")

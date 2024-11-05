@@ -24,10 +24,11 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from constants import USE_GROQ, USE_OLLAMA
 from langchain.prompts import PromptTemplate
+from logging import warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
 from re import DOTALL, search
+from utils import parsed_args
 
 
 class LLM_activities_used_columns:
@@ -63,8 +64,8 @@ class LLM_activities_used_columns:
 
         self.chat_llm = (
             Ollama(self.prompt)
-            if USE_OLLAMA
-            else (Groq(self.prompt) if USE_GROQ else ChatLLM())
+            if parsed_args().use_ollama
+            else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
 
     def give_columns(self, df_before, df_after, code, description) -> str:

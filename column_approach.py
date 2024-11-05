@@ -42,22 +42,22 @@ def is_number(value):
 
 
 def column_vision(changes, current_activities):
-    derivations_column = []
-    current_relations_column = []
-    current_columns = {}
+    derivations_column = list()
+    current_relations_column = list()
+    current_columns = dict()
 
     used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
 
     for act in changes.keys():
-        generated_columns = []
-        used_columns = []
-        invalidated_columns = []
+        generated_columns = list()
+        used_columns = list()
+        invalidated_columns = list()
         if act == 0:
             continue
         activity = current_activities[act - 1]
         df1 = changes[act]["before"]
         df2 = changes[act]["after"]
-        activity['runtime_exceptions'] = "No exceptions occurred"
+        activity["runtime_exceptions"] = "No exceptions occurred"
         activity_description, activity_code = (
             activity["context"],
             activity["code"],
@@ -75,7 +75,7 @@ def column_vision(changes, current_activities):
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)
         # if the column is exclusively in the "before" dataframe
-        unique_df1_col = []
+        unique_df1_col = list()
         for col in unique_col_in_df1:
             # if the column already exist or create it
             val_col = str(df1[col].tolist())

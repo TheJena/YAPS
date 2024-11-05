@@ -24,5 +24,6 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
+
 def run_pipeline(*args, **kwargs):
     raise NotImplementedError("This is only a dummy placeholder")

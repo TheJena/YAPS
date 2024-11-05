@@ -31,7 +31,7 @@ class ProvenanceTracker:
     def __init__(self, save_on_neo4j=False):
         self.save_on_neo4j = save_on_neo4j
         self.tracking_enabled = False
-        self.changes: dict[int, dict[str, pd.DataFrame]] = {}
+        self.changes: dict[int, dict[str, pd.DataFrame]] = dict()
         self.operation_counter = 0
 
     def subscribe(self, df):

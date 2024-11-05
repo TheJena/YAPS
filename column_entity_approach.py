@@ -49,27 +49,27 @@ def is_number(value):
 
 def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
     # keeping current elements on the graph supporting the creation on neo4j
-    current_entities = {}
-    current_columns = {}
+    current_entities = dict()
+    current_columns = dict()
 
     used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
     # keeping current elements on the graph supporting the creation on neo4j
-    entities_to_keep = []
+    entities_to_keep = list()
 
     # find the differnce of the df and create the entities
-    derivations = []
-    derivations_column = []
-    current_relations = []
-    current_relations_column = []
-    current_columns_to_entities = {}
+    derivations = list()
+    derivations_column = list()
+    current_relations = list()
+    current_relations_column = list()
+    current_columns_to_entities = dict()
     for act in changes.keys():
         used_cols = None
-        generated_entities = []
-        used_entities = []
-        invalidated_entities = []
-        generated_columns = []
-        used_columns = []
-        invalidated_columns = []
+        generated_entities = list()
+        used_entities = list()
+        invalidated_entities = list()
+        generated_columns = list()
+        used_columns = list()
+        invalidated_columns = list()
         if act == 0:
             continue
         activity = current_activities[act - 1]
@@ -98,7 +98,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)
         # if the column is exclusively in the "before" dataframe
-        unique_df1_col = []
+        unique_df1_col = list()
         for col in unique_col_in_df1:
             # control il the column already exist or create it
             val_col = str(df1[col].tolist())
@@ -107,7 +107,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
             if (val_col, idx_col, col) not in current_columns.keys():
                 new_column = create_column(val_col, idx_col, col)
                 current_columns[(val_col, idx_col, col)] = new_column
-                current_columns_to_entities[new_column["id"]] = []
+                current_columns_to_entities[new_column["id"]] = list()
             else:
                 new_column = current_columns[(val_col, idx_col, col)]
             unique_df1_col.append(new_column)
@@ -136,7 +136,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                 new_column = create_column(val_col, idx_col, col)
                 generated_columns.append(new_column["id"])
                 current_columns[(val_col, idx_col, col)] = new_column
-                current_columns_to_entities[new_column["id"]] = []
+                current_columns_to_entities[new_column["id"]] = list()
                 for column in unique_df1_col:
                     if (
                         new_column["index"] == column["index"]
@@ -181,7 +181,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                 if (val_col, idx_col, col) not in current_columns.keys():
                     used_column = create_column(val_col, idx_col, col)
                     current_columns[(val_col, idx_col, col)] = used_column
-                    current_columns_to_entities[used_column["id"]] = []
+                    current_columns_to_entities[used_column["id"]] = list()
                 else:
                     used_column = current_columns[(val_col, idx_col, col)]
                 if used_column:
@@ -209,7 +209,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                         new_column = create_column(val_col, idx_col, col)
                         generated_columns.append(new_column["id"])
                         current_columns[(val_col, idx_col, col)] = new_column
-                        current_columns_to_entities[new_column["id"]] = []
+                        current_columns_to_entities[new_column["id"]] = list()
                     else:
                         new_column = current_columns[(val_col, idx_col, col)]
 
@@ -230,10 +230,12 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                                 idx_old_col,
                                 col,
                             )
-                            current_columns[(val_old_col, idx_old_col, col)] = (
-                                old_column
+                            current_columns[
+                                (val_old_col, idx_old_col, col)
+                            ] = old_column
+                            current_columns_to_entities[old_column["id"]] = (
+                                list()
                             )
-                            current_columns_to_entities[old_column["id"]] = []
                         else:
                             old_column = current_columns[
                                 (val_old_col, idx_old_col, col)
@@ -292,7 +294,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                 if (val_col, idx_col, col) not in current_columns.keys():
                     new_column = create_column(val_col, idx_col, col)
                     current_columns[(val_col, idx_col, col)] = new_column
-                    current_columns_to_entities[new_column["id"]] = []
+                    current_columns_to_entities[new_column["id"]] = list()
                     generated_columns.append(new_column["id"])
                 else:
                     new_column = current_columns[(val_col, idx_col, col)]
@@ -315,7 +317,9 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                                     col,
                                 )
                             ] = old_column
-                            current_columns_to_entities[old_column["id"]] = []
+                            current_columns_to_entities[old_column["id"]] = (
+                                list()
+                            )
                         else:
                             old_column = current_columns[
                                 (

@@ -83,7 +83,9 @@ def run_pipeline(args, tracker) -> None:
     tracker.analyze_changes(df)
 
     # Map c_charge_degree to binary variable (0 for misconduct, 1 for felony)
-    df["c_charge_degree"] = [0 if s == "M" else 1 for s in df["c_charge_degree"]]
+    df["c_charge_degree"] = [
+        0 if s == "M" else 1 for s in df["c_charge_degree"]
+    ]
     tracker.analyze_changes(df)
 
     return df

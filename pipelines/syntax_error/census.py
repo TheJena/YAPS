@@ -90,7 +90,7 @@ def run_pipeline(args, tracker) -> None:
 
     df = df.drop(["fnlwgt"], axis=1)
 
-    df['fnlwgt_copy'] = df['fnlwgt']  # raise a KeyError
+    df["fnlwgt_copy"] = df["fnlwgt"]  # raise a KeyError
 
     # rename
     df = df.rename(columns={"hours-per-week": "hw"}, inplace=True)

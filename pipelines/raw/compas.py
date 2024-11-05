@@ -69,4 +69,6 @@ def run_pipeline(args, tracker) -> None:
     df = df.drop(["c_jail_in", "c_jail_out"], axis=1)
 
     # M: misconduct, F: felony
-    df["c_charge_degree"] = [0 if s == "M" else 1 for s in df["c_charge_degree"]]
+    df["c_charge_degree"] = [
+        0 if s == "M" else 1 for s in df["c_charge_degree"]
+    ]

@@ -25,7 +25,12 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Dict, List
-import graph.constants as constants
+from graph.constants import (
+    NAMESPACE_ACTIVITY,
+    NAMESPACE_TRACKER,
+    NAMESPACE_ENTITY,
+    NAMESPACE_COLUMN,
+)
 import uuid
 
 
@@ -62,7 +67,7 @@ def create_activity(
     :return: The ID of the new provenance activity.
     """
 
-    act_id = constants.NAMESPACE_ACTIVITY + str(uuid.uuid4())
+    act_id = NAMESPACE_ACTIVITY + str(uuid.uuid4())
 
     attributes = {
         "code": code,
@@ -79,11 +84,11 @@ def create_activity(
         + exception_text
         + ")",
         "tracker_id": (
-            constants.NAMESPACE_TRACKER + tracker_id  #
+            NAMESPACE_TRACKER + tracker_id  #
             if tracker_id is not None  #
             else None
         ),
-        "used_features": used_features or [],
+        "used_features": used_features or list(),
     }
 
     if other_attributes is not None:
@@ -107,12 +112,12 @@ def create_entity(
     """
 
     entity = {
-        "id": constants.NAMESPACE_ENTITY + str(uuid.uuid4()),
+        "id": NAMESPACE_ENTITY + str(uuid.uuid4()),
         "value": value,
         "type": type(value).__name__,
         "feature_name": feature_name,
         "index": index,
-        "instance": instance or [],
+        "instance": instance or list(),
     }
 
     return entity
@@ -128,10 +133,10 @@ def create_column(value, index, instance: str = None) -> Dict[str, any]:
     """
 
     column = {
-        "id": constants.NAMESPACE_COLUMN + str(uuid.uuid4()),
+        "id": NAMESPACE_COLUMN + str(uuid.uuid4()),
         "value": value,
         "index": index,
-        "instance": instance or [],
+        "instance": instance or list(),
     }
 
     return column
@@ -156,12 +161,12 @@ def create_relation(
     :return: None
     """
 
-    generated = generated or []
-    used = used or []
-    invalidated = invalidated or []
+    generated = generated or list()
+    used = used or list()
+    invalidated = invalidated or list()
 
     if same:
-        invalidated = []
+        invalidated = list()
 
     return (generated, used, invalidated, same, act_id)
 
@@ -185,11 +190,11 @@ def create_relation_column(
     :return: None
     """
 
-    generated = generated or []
-    used = used or []
-    invalidated = invalidated or []
+    generated = generated or list()
+    used = used or list()
+    invalidated = invalidated or list()
 
     if same:
-        invalidated = []
+        invalidated = list()
 
     return (generated, used, invalidated, same, act_id)

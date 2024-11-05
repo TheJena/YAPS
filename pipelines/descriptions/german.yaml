@@ -1,0 +1,25 @@
+Create a new column for marital status:
+- Create a new column 'status' based on the 'personal_status' column.
+- "df[\"status\"] = (\n            df[\"personal_status\"]\n            .map(\n                {\n
+  \                   \"A91\": \"divorced\",\n                    \"A92\": \"divorced\",\n
+  \                   \"A93\": \"single\",\n                    \"A95\": \"single\",\n
+  \               }\n            )\n            .fillna(\"married\")\n        )"
+Drop 'personal_status' column:
+- Drop the 'personal_status' column from the dataframe.
+- df = df.drop(["personal_status"], axis=1)
+One-hot encoding for categorical features:
+- Perform one-hot encoding on specific categorical columns.
+- "columns = [\n            \"checking\",\n            \"credit_history\",\n            #
+  ...\n        ]\n        for col in columns:\n            df_dummies = pd.get_dummies(df[col],
+  prefix=f\"{col}_\")\n            df = df.join(df_dummies)\n            df = df.drop([col],
+  axis=1)"
+Replace categorical values:
+- Replace specific categorical values in the dataframe.
+- "df = df.replace(\n            {\n                \"checking\": {\n                    \"A11\":
+  \"check_low\",\n                    \"A12\": \"check_mid\",\n                    \"A13\":
+  \"check_high\",\n                    \"A14\": \"check_none\",\n                },\n
+  \               # ...\n            }\n        )"
+Translate gender:
+- Translate the 'personal_status' column to a binary value.
+- "df[\"personal_status\"] = np.where(\n            df.personal_status == \"A92\",\n
+  \           0,\n            np.where(df.personal_status == \"A95\", 0, 1),\n        )"

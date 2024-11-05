@@ -5,3 +5,4 @@ langchain_groq
 mypy
 neo4j
 pandas
+pyyaml

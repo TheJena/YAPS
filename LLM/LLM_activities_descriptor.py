@@ -24,13 +24,12 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from constants import USE_GROQ, USE_OLLAMA
 from langchain.prompts import PromptTemplate
+from logging import warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
-from os.path import abspath
 from re import DOTALL, search
 from textwrap import dedent
-from utils import black
+from utils import black, dump, parsed_args
 
 
 class LLM_activities_descriptor:
@@ -176,14 +175,14 @@ class LLM_activities_descriptor:
 
         self.chat_llm = (
             Ollama(self.prompt)
-            if USE_OLLAMA
-            else (Groq(self.prompt) if USE_GROQ else ChatLLM())
+            if parsed_args().use_ollama
+            else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
 
         # cleaning pipeline in text format
         self.pipeline_content = black(io_obj.read())
 
-    def descript(self) -> str:
+    def descript(self, io_obj=None) -> str:
         response = self.chat_llm.invoke(
             {
                 "pipeline_content": self.pipeline_content,
@@ -199,12 +198,19 @@ class LLM_activities_descriptor:
                 .removeprefix("pipeline_")
             )
             print(descr_to_write)
-            filename = "described_activities.py"
+            descr_to_write = black(descr_to_write).removeprefix(
+                "operations = "
+            )
 
-            with open(filename, "w") as file:
-                file.write(black(descr_to_write))
-            print(f"Description has been successfully written to {filename}")
-            print(abspath(filename))
-            return black(descr_to_write)
+            if io_obj is None:
+                io_obj = open("described_activities.yaml", "w")
+
+            dump(code=descr_to_write, stream=io_obj)
+            io_obj.close()
+
+            print(
+                f"Description has been successfully written to {io_obj.name}"
+            )
+            return descr_to_write
         else:
             print("No triple-quoted text found.")
