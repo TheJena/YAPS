@@ -51,3 +51,5 @@ def run_pipeline(args, tracker) -> None:
         df = df.join(df_dummies)
 
         df = df.drop([col], axis=1)
+
+    return df

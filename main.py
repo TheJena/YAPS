@@ -27,28 +27,47 @@
 
 from column_approach import column_vision
 from column_entity_approach import column_entitiy_vision
-from extracted_code import run_pipeline
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import create_activity
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from LLM.LLM_formatter import LLM_formatter
+from os.path import abspath, lexists
+from os import remove, symlink
 from SECRET import MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from tracking.tracking import ProvenanceTracker
-from utils import load, parsed_args
+from utils import parsed_args, serialize, yaml_load
+import extracted_code
+import importlib
 
 
 def wrapper_run_pipeline(args, tracker):
+    pipeline_symlink = "extracted_code.py"
+    assert abspath(pipeline_symlink) == abspath(extracted_code.__file__), str(
+        f"Please update LLM_formatter.standardize() default output, "
+        f"{pipeline_symlink=}; expected {abspath(extracted_code.__file__)!r}"
+    )
+
+    if lexists(pipeline_symlink):
+        remove(pipeline_symlink)
+    assert not lexists(pipeline_symlink), "check the above remove() on windows"
+
+    pipeline_path = abspath(parsed_args().formatted_pipeline.name)
+    symlink(pipeline_path, abspath(f"./{pipeline_symlink}"))
+    importlib.reload(extracted_code)
+
     try:
-        # Esegui la funzione run_pipeline; potresti modificare
-        # run_pipeline per restituire lo stato parziale se possibile
-        run_pipeline(args, tracker)  # La funzione non viene modificata
+        ret = extracted_code.run_pipeline(args, tracker)
     except Exception as e:
         exception_type = type(e).__name__
         exception_message = str(e)
         print(f"Eccezione catturata: {exception_type} - {exception_message}")
         return f"{exception_type} - {exception_message}"
-    return " "
+    else:
+        return " "
+    finally:
+        if parsed_args().output is not None:
+            serialize(ret, parsed_args().output)
 
 
 cli_args = parsed_args()
@@ -70,7 +89,7 @@ if cli_args.pipeline_description is None:
     # operation")}
     activities_descr_dict = descriptor.descript(cli_args.pipeline_description)
 else:
-    activities_descr_dict = load(cli_args.pipeline_description)
+    activities_descr_dict = yaml_load(cli_args.pipeline_description)
 
 
 used_columns_giver = LLM_activities_used_columns()
@@ -79,6 +98,7 @@ used_columns_giver = LLM_activities_used_columns()
 #         df_before, df_after, code, description
 #     )
 # )
+
 
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(

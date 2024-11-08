@@ -29,7 +29,7 @@ from logging import warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
 from re import DOTALL, search
 from textwrap import dedent
-from utils import black, dump, parsed_args
+from utils import black, parsed_args, yaml_dump
 
 
 class LLM_activities_descriptor:
@@ -205,7 +205,9 @@ class LLM_activities_descriptor:
             if io_obj is None:
                 io_obj = open("described_activities.yaml", "w")
 
-            dump(code=descr_to_write, stream=io_obj)
+            if io_obj.seekable:
+                io_obj.seek(0)  # truncate file
+            yaml_dump(code=descr_to_write, stream=io_obj)
             io_obj.close()
 
             print(

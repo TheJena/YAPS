@@ -17,4 +17,4 @@ Rename first column to 'car_id':
 - 'df.rename(columns={df.columns[0]: "car_id"}, inplace=True)'
 Strip leading and trailing whitespaces from specified columns:
 - Remove leading and trailing whitespaces from specified columns
-- df[cols] = df[cols].applymap(str.strip)
+- df[cols] = df[cols].map(str.strip)

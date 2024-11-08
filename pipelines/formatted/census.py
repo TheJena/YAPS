@@ -72,7 +72,7 @@ def run_pipeline(args, tracker) -> None:
         "sex",
         "workclass",
     ]
-    df[columns] = df[columns].applymap(str.strip)
+    df[columns] = df[columns].map(str.strip)
     df = df.replace("?", 0)
     tracker.analyze_changes(df)
 
@@ -88,10 +88,11 @@ def run_pipeline(args, tracker) -> None:
     # Replace sex and label columns with numerical values
     df = df.replace(
         {
-            "sex": {"Male": 1, "Female": 0},
-            "label": {"<=50K": 0, ">50K": 1},
+            "sex": {"Male": "1", "Female": "0"},
+            "label": {"<=50K": "0", ">50K": "1"},
         }
     )
+    df = df.astype({"sex": int, "label": int})
     tracker.analyze_changes(df)
 
     # Drop fnlwgt column
@@ -99,7 +100,7 @@ def run_pipeline(args, tracker) -> None:
     tracker.analyze_changes(df)
 
     # Rename hours-per-week column to hw
-    df = df.rename(columns={"hours-per-week": "hw"}, inplace=True)
+    df = df.rename(columns={"hours-per-week": "hw"})
     tracker.analyze_changes(df)
 
     return df

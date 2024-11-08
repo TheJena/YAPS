@@ -2,7 +2,10 @@ black
 langchain
 langchain_community
 langchain_groq
+matplotlib
 mypy
 neo4j
 pandas
 pyyaml
+scikit-learn
+seaborn

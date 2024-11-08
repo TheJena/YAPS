@@ -153,3 +153,5 @@ def run_pipeline(args, tracker) -> None:
         df_dummies = dummies.add_prefix(col + "_")
         df = df.join(df_dummies)
         df = df.drop([col], axis=1)
+
+    return df

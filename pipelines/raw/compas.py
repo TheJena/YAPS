@@ -72,3 +72,5 @@ def run_pipeline(args, tracker) -> None:
     df["c_charge_degree"] = [
         0 if s == "M" else 1 for s in df["c_charge_degree"]
     ]
+
+    return df

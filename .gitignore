@@ -1,5 +1,9 @@
 # -*- mode: gitignore; -*-
 
+*.orig
+*.patch
+*.pkl
+
 # Lazzaro's
 /PL
 /test

@@ -70,7 +70,7 @@ def run_pipeline(args, tracker) -> None:
         "native-country",
         "label",
     ]
-    df[columns] = df[columns].applymap(str.strip)
+    df[columns] = df[columns].map(str.strip)
     df = df.replace("?", 0)
 
     columns = ["education"]
@@ -83,12 +83,14 @@ def run_pipeline(args, tracker) -> None:
     # replace
     df = df.replace(
         {
-            "sex": {"Male": 1, "Female": 0},
-            "label": {"<=50K": 0, ">50K": 1},
+            "sex": {"Male": "1", "Female": "0"},
+            "label": {"<=50K": "0", ">50K": "1"},
         }
-    )
+    ).astype({"sex": int, "label": int})
 
     df = df.drop(["fnlwgt"], axis=1)
 
     # rename
-    df = df.rename(columns={"hours-per-week": "hw"}, inplace=True)
+    df = df.rename(columns={"hours-per-week": "hw"})
+
+    return df

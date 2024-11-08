@@ -21,6 +21,6 @@ Replace sex and label columns with numerical values:
 Strip whitespace from categorical columns and replace ? with 0:
 - Remove leading and trailing whitespaces from categorical columns and replace '?'
   values with '0'
-- 'df[columns] = df[columns].applymap(str.strip)
+- 'df[columns] = df[columns].map(str.strip)
 
   df = df.replace(''?'', 0)'

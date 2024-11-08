@@ -69,3 +69,5 @@ def run_pipeline(args, tracker) -> None:
         lambda age: "New" if age <= 3 else ("Middle" if age <= 9 else "Old")
     )
     print(df)
+
+    return df

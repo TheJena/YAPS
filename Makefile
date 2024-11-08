@@ -21,8 +21,9 @@ black-view:
 # Remove emacs backup files and python compiled bytecode
 clean:
 	clear
-	rm -vf .DS_Store .markdown-preview.html extracted_code.py
+	rm -vf .markdown-preview.html extracted_code.py
 	ln -vfs pipelines/formatted/empty.py extracted_code.py
+	find . -type f -iname ".DS_Store"   -exec rm   -fv {} \;
 	find . -type f -iname "*~"          -exec rm   -fv {} \;
 	find . -type f -iname "*.pyc"       -exec rm   -fv {} \;
 	find . -type d -iname "__pycache__" -exec rmdir -v {} \;
@@ -50,7 +51,8 @@ ollama-run:
 		ollama run $(LLM_NAME) --keepalive $(LLM_ALIVE)
 
 patches:
-	git format-patch -o ~/RAMDISK/ lazzaros
+	rm -vf ./patches/*.patch
+	git format-patch -o ./patches/ lazzaros
 
 # Upgrade all outdated packages with pip
 # ( many thanks to https://stackoverflow.com/a/3452888 )

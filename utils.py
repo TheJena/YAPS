@@ -32,8 +32,9 @@ from argparse import (
 )
 from black import __path__ as BLACK_PATH, __version__ as BLACK_VERSION
 from logging import warning
-from os.path import join as join_path, isdir, isfile
+from os.path import abspath, join as join_path, isdir, isfile
 from subprocess import check_output
+import pickle
 import random
 import yaml
 
@@ -72,17 +73,6 @@ def black(pycode, line_length=79, target_version="py312"):
         return pycode
 
 
-def dump(code=None, data=None, io_obj=None):
-    assert io_obj is not None, repr(io_obj)
-    assert code is not None or data is not None, f"{code!r}\n{data!r}"
-
-    if code is not None:
-        data = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
-            code
-        )
-    yaml.dump(data, default_flow_style=False, Dumper=SafeDumper, stream=io_obj)
-
-
 def i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
     *args, **kwargs
 ):
@@ -96,10 +86,6 @@ def keep_random_element_in_place(lst):
     lst.clear()
     lst.append(random_element)
     return random_element
-
-
-def load(io_obj):
-    return yaml.load(io_obj, loader=SafeLoader)
 
 
 def parsed_args() -> Namespace:
@@ -118,7 +104,7 @@ def parsed_args() -> Namespace:
     parser.add_argument(
         "-i",
         "--input-data",
-        help="datasets/car.csv",
+        help="datasets/raw/car.csv",
         dest="dataset",
         metavar="file.csv",
         type=FileType("r"),
@@ -137,15 +123,23 @@ def parsed_args() -> Namespace:
         dest="formatted_pipeline",
         help="LLM_formatter($raw_pipeline)",
         metavar="file.py",
-        type=FileType("w+"),
+        type=FileType("r+"),
     )
     parser.add_argument(
         "-d",
         "--pipeline-description",
         dest="pipeline_description",
         help="LLM_activities_descriptor(LLM_formatter($raw_pipeline))",
-        metavar="file.py",
-        type=FileType("w+"),
+        metavar="file.yaml",
+        type=FileType("r+"),
+    )
+    parser.add_argument(
+        "-o",
+        "--output-data",
+        help="datasets/clean/car.csv",
+        dest="output",
+        metavar="file.csv",
+        type=FileType("w"),
     )
 
     parser.add_argument(
@@ -161,7 +155,7 @@ def parsed_args() -> Namespace:
         "-q", "--groq", action="store_true", dest="use_groq"
     )
     llm_backend.add_argument(
-        "-o", "--ollama", action="store_true", dest="use_ollama"
+        "-l", "--ollama", action="store_true", dest="use_ollama"
     )
 
     parser.add_argument(
@@ -194,3 +188,48 @@ def parsed_args() -> Namespace:
 
     _PARSE_ARGS = parser.parse_args()
     return _PARSE_ARGS
+
+
+def serialize(data, io_obj):
+    assert io_obj is not None
+    if (
+        (io_obj.name.endswith(".csv") or "stdout" in io_obj.name)
+        and hasattr(data, "to_csv")
+        and callable(getattr(data, "to_csv"))
+    ):
+        data.loc[:, sorted(data.columns, key=str.lower)].sort_index().to_csv(
+            io_obj
+        )
+    elif (
+        io_obj.name.endswith(".xlsx")
+        and hasattr(data, "to_excel")
+        and callable(getattr(data, "to_excel"))
+    ):
+        data.loc[:, sorted(data.columns, key=str.lower)].sort_index().to_excel(
+            io_obj
+        )
+    else:
+        pickle.dump(
+            data,
+            open(".".join(io_obj.name.split(".")[:-1] + ["pkl"]), "wb"),
+        )
+
+
+def set_formatted_pipeline_path(path):
+    global _PARSE_ARGS
+    _PARSE_ARGS.formatted_pipeline = abspath(path)
+
+
+def yaml_dump(code=None, data=None, io_obj=None):
+    assert io_obj is not None, repr(io_obj)
+    assert code is not None or data is not None, f"{code!r}\n{data!r}"
+
+    if code is not None:
+        data = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+            code
+        )
+    yaml.dump(data, default_flow_style=False, Dumper=SafeDumper, stream=io_obj)
+
+
+def yaml_load(io_obj):
+    return yaml.load(io_obj, Loader=SafeLoader)

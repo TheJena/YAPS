@@ -35,7 +35,7 @@ from os.path import abspath
 from re import DOTALL, search
 from SECRET import MY_API_KEY
 from textwrap import dedent
-from utils import black, parsed_args
+from utils import black, parsed_args, set_formatted_pipeline_path
 
 
 class ChatLLM(object):
@@ -292,8 +292,11 @@ class LLM_formatter:
             code_to_write = black(code_to_write)
 
             if io_obj is None:
+                set_formatted_pipeline_path("extracted_code.py")
                 io_obj = open("extracted_code.py", "w")
 
+            if io_obj.seekable:
+                io_obj.seek(0)  # truncate file
             io_obj.write(code_to_write)
             io_obj.close()
 

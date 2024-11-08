@@ -68,7 +68,7 @@ def run_pipeline(args, tracker) -> None:
 
     # Strip leading and trailing whitespaces from specified columns
     cols = ["car_brand", "car_model", "car_city"]
-    df[cols] = df[cols].applymap(str.strip)
+    df[cols] = df[cols].map(str.strip)
     tracker.analyze_changes(df)
 
     # Create new column 'car_age_category' based on 'car_age'

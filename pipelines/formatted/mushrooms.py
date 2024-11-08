@@ -28,7 +28,7 @@ import pandas as pd
 
 
 def run_pipeline(args, tracker) -> None:
-    input_path = args.datasets
+    input_path = args.dataset
 
     # Load the dataset from CSV file
     df = pd.read_csv(input_path, sep=";", index_col=False)
@@ -63,7 +63,7 @@ def run_pipeline(args, tracker) -> None:
     tracker.analyze_changes(df)
 
     # Convert the class column to binary values (0/1)
-    df["class"] = df["class"].replace({"e": 1, "p": 0})
+    df["class"] = df["class"].replace({"e": "1", "p": "0"}).astype(int)
     tracker.analyze_changes(df)
 
     # Drop rows with missing values
@@ -74,46 +74,48 @@ def run_pipeline(args, tracker) -> None:
     df = df.replace(
         {
             "cap-color": {
-                "n": 1,
-                "b": 2,
-                "g": 3,
-                "r": 3,
-                "p": 4,
-                "u": 5,
-                "e": 6,
-                "w": 7,
-                "y": 8,
-                "l": 9,
-                "o": 10,
-                "k": 11,
+                "n": "1",
+                "b": "2",
+                "g": "3",
+                "r": "3",
+                "p": "4",
+                "u": "5",
+                "e": "6",
+                "w": "7",
+                "y": "8",
+                "l": "9",
+                "o": "10",
+                "k": "11",
             },
             "cap-shape": {
-                "b": 1,
-                "c": 2,
-                "x": 3,
-                "f": 4,
-                "s": 5,
-                "p": 6,
-                "o": 7,
+                "b": "1",
+                "c": "2",
+                "x": "3",
+                "f": "4",
+                "s": "5",
+                "p": "6",
+                "o": "7",
             },
             "cap-surface": {
-                "i": 1,
-                "g": 2,
-                "y": 3,
-                "s": 4,
-                "h": 5,
-                "l": 6,
-                "k": 7,
-                "t": 8,
-                "w": 9,
-                "e": 10,
+                "i": "1",
+                "g": "2",
+                "y": "3",
+                "s": "4",
+                "h": "5",
+                "l": "6",
+                "k": "7",
+                "t": "8",
+                "w": "9",
+                "e": "10",
             },
-            "season": {
-                "s": 1,
-                "u": 2,
-                "a": 3,
-                "w": 4,
-            },
+            "season": {"s": "1", "u": "2", "a": "3", "w": "4"},
+        }
+    ).astype(
+        {
+            "cap-color": int,
+            "cap-shape": int,
+            "cap-surface": int,
+            "season": int,
         }
     )
     tracker.analyze_changes(df)

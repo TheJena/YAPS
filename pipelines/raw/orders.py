@@ -62,3 +62,5 @@ def run_pipeline(args, tracker) -> None:
 
     # Ensure column names are maintained or regenerated after transformation
     df.columns = [f"feature_{i}" for i in range(df.shape[1])]
+
+    return df
