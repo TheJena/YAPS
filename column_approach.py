@@ -25,6 +25,7 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
+from logging import debug, info, warning
 from SECRET import MY_API_KEY
 from graph.structure import create_column, create_relation_column
 from utils import (
@@ -62,15 +63,17 @@ def column_vision(changes, current_activities):
             activity["context"],
             activity["code"],
         )
-        prova = used_columns_giver.give_columns(
+
+        debug(f"{activity['function_name']=}")
+        used_columns_string = used_columns_giver.give_columns(
             df1, df2, activity_code, activity_description
         )
-        print(prova)
+        debug(f"{used_columns_string=}")
         used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(  # noqa
-            prova
+            used_columns_string
         )
-        print(used_cols)
-        # print(activity['function_name'], df1, df2)
+        debug(f"{used_cols=}")
+
         # Iterate over the columns and rows to find differences
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)

@@ -25,7 +25,7 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from langchain.prompts import PromptTemplate
-from logging import warning
+from logging import debug, info, warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
 from re import DOTALL, search
 from textwrap import dedent
@@ -197,7 +197,7 @@ class LLM_activities_descriptor:
                 .removeprefix("python\n")
                 .removeprefix("pipeline_")
             )
-            print(descr_to_write)
+            info(descr_to_write)
             descr_to_write = black(descr_to_write).removeprefix(
                 "operations = "
             )
@@ -210,9 +210,9 @@ class LLM_activities_descriptor:
             yaml_dump(code=descr_to_write, stream=io_obj)
             io_obj.close()
 
-            print(
+            debug(
                 f"Description has been successfully written to {io_obj.name}"
             )
             return descr_to_write
         else:
-            print("No triple-quoted text found.")
+            warning("No triple-quoted text found.")

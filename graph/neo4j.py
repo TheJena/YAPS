@@ -38,12 +38,12 @@ from graph.constants import (
     NEXT_RELATION,
     USED_RELATION,
 )
-from graph.decorators import Singleton
-from graph.logger import CustomLogger
+from logging import debug, error
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool
 from neo4j import GraphDatabase, Session
 from typing import List, Optional
+from utils import Singleton
 
 
 @Singleton
@@ -57,14 +57,13 @@ class Neo4jConnector:
         self.__user = user
         self.__pwd = pwd
         self.__driver = None
-        self.__logger = CustomLogger("ProvenanceTracker")
 
         try:
             self.__driver = GraphDatabase.driver(
                 self.__uri, auth=(self.__user, self.__pwd)
             )
         except Exception as e:
-            self.__logger.error("Failed to create the driver:", e)
+            error(f"Failed to create the driver: {e!s}")
 
     def close(self) -> None:
         """
@@ -96,7 +95,6 @@ class Neo4jQueryExecutor:
 
     def __init__(self, connector) -> None:
         self.__connector = connector
-        self.__logger = CustomLogger("ProvenanceTracker")
 
     def write_transaction(self, query: str) -> None:
         def transaction(tx) -> None:
@@ -117,7 +115,10 @@ class Neo4jQueryExecutor:
                     query,
                     batch_size,
                 )
-                print(result)
+                debug(
+                    f"Result of write_transaction2(query=\n{query}\n) "
+                    f"= {result!r}"
+                )
                 if result < batch_size:
                     break
 
@@ -154,7 +155,7 @@ class Neo4jQueryExecutor:
                 session = self.__connector.create_session(db=db)
             response = session.run(query, parameters).data()
         except Exception as e:
-            self.__logger.error(f"Query failed: {e} {query}")
+            error(f"Query failed: {e} {query}")
         finally:
             # Close the session if it was internally created
             if session is not None and not external_session:
@@ -209,7 +210,6 @@ class Neo4jQueries:
 
     def __init__(self, query_executor):
         self.__query_executor = query_executor
-        self.logger = CustomLogger("ProvenanceTracker")
 
     # @timing(log_file=NEO4j_QUERY_EXECUTION_TIMES)
     def create_constraint(self, session=None) -> None:
@@ -220,65 +220,42 @@ class Neo4jQueries:
                         the query.
         """
 
-        query = """DROP CONSTRAINT """ + ACTIVITY_CONSTRAINT + """"""
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
+        for query in (
+            f"DROP CONSTRAINT {ACTIVITY_CONSTRAINT}",
+            f"DROP CONSTRAINT {ENTITY_CONSTRAINT}",
+            f"DROP CONSTRAINT {COLUMN_CONSTRAINT}",
+        ):
+            try:
+                self.__query_executor.query(
+                    query=query,
+                    parameters=None,
+                    session=session,
+                )
+            except Exception as e:
+                if "Unable to drop constraint" in str(
+                    e
+                ) and "No such constraint" in str(e):
+                    continue
+                raise e
 
-        query = """DROP CONSTRAINT """ + ENTITY_CONSTRAINT
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
-
-        query = """DROP CONSTRAINT """ + COLUMN_CONSTRAINT
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
-
-        query = (
-            """CREATE CONSTRAINT """
-            + ACTIVITY_CONSTRAINT
-            + """ FOR (a:"""
-            + ACTIVITY_LABEL
-            + """) REQUIRE a.id IS UNIQUE"""
-        )
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
-
-        query = (
-            """CREATE CONSTRAINT """
-            + ENTITY_CONSTRAINT
-            + """ FOR (e:"""
-            + ENTITY_LABEL
-            + """) REQUIRE e.id IS UNIQUE"""
-        )
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
-
-        query = (
-            """CREATE CONSTRAINT """
-            + COLUMN_CONSTRAINT
-            + """ FOR (c:"""
-            + COLUMN_LABEL
-            + """) REQUIRE c.id IS UNIQUE"""
-        )
-        self.__query_executor.query(
-            query=query,
-            parameters=None,
-            session=session,
-        )
+        for query in (
+            f"CREATE CONSTRAINT {ACTIVITY_CONSTRAINT} "
+            f"FOR (a:{ACTIVITY_LABEL}) REQUIRE a.id IS UNIQUE",
+            #
+            f"CREATE CONSTRAINT {ENTITY_CONSTRAINT} "
+            f"FOR (e:{ENTITY_LABEL}) REQUIRE e.id IS UNIQUE",
+            #
+            f"CREATE CONSTRAINT {COLUMN_CONSTRAINT} "
+            f"FOR (c:{COLUMN_LABEL}) REQUIRE c.id IS UNIQUE",
+        ):
+            try:
+                self.__query_executor.query(
+                    query=query,
+                    parameters=None,
+                    session=session,
+                )
+            except Exception as e:
+                raise e
 
     # @timing(log_file=NEO4j_QUERY_EXECUTION_TIMES)
     def delete_all(self, session=None):
@@ -292,12 +269,12 @@ class Neo4jQueries:
 
         query = """
                 MATCH (n)
-                CALL { WITH n
+                CALL (n) { WITH n
                 DETACH DELETE n
                 } IN TRANSACTIONS OF 1000 ROWS;
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
         # self.__query_executor.write_transaction2(query)
         self.__query_executor.query(query, parameters=None, session=session)
 
@@ -320,7 +297,7 @@ class Neo4jQueries:
                 SET a = row
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.query(
             query, parameters={"rows": activities}, session=session
         )
@@ -342,7 +319,7 @@ class Neo4jQueries:
                 SET e=row
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.insert_data_multiprocess(
             query=query,
             rows=entities,
@@ -365,7 +342,7 @@ class Neo4jQueries:
                 SET c=row
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.insert_data_multiprocess(
             query=query,
             rows=columns,
@@ -388,7 +365,7 @@ class Neo4jQueries:
                 SET e=row
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.insert_data_multiprocess(
             query=query,
             rows=entities,
@@ -417,7 +394,7 @@ class Neo4jQueries:
             + """]->(e2)
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.insert_data_multiprocess(
             query=query,
             rows=derivations,
@@ -445,7 +422,7 @@ class Neo4jQueries:
             + """]->(c2)
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         self.__query_executor.insert_data_multiprocess(
             query=query,
             rows=derivations,
@@ -477,7 +454,7 @@ class Neo4jQueries:
                 + """]->(a)
                     """
             )
-            self.logger.debug(msg=query)
+            debug(query)
             self.__query_executor.insert_data_multiprocess(
                 query=query, rows=entities, column=column
             )
@@ -547,9 +524,9 @@ class Neo4jQueries:
                     """
             )
 
-            self.logger.debug(msg=query1)
-            self.logger.debug(msg=query2)
-            self.logger.debug(msg=query3)
+            debug(query1)
+            debug(query2)
+            debug(query3)
 
             self.__query_executor.insert_data_multiprocess(
                 query=query1, rows=used, act_id=act_id
@@ -625,9 +602,9 @@ class Neo4jQueries:
                     """
             )
 
-            self.logger.debug(msg=query1)
-            self.logger.debug(msg=query2)
-            self.logger.debug(msg=query3)
+            debug(query1)
+            debug(query2)
+            debug(query3)
 
             self.__query_executor.insert_data_multiprocess(
                 query=query1, rows=used, act_id=act_id
@@ -670,7 +647,7 @@ class Neo4jQueries:
                 """
         )
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         self.__query_executor.query(
             query,
@@ -707,7 +684,7 @@ class Neo4jQueries:
                 RETURN a
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -728,7 +705,7 @@ class Neo4jQueries:
                 """
         )
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -754,7 +731,7 @@ class Neo4jQueries:
                 """
         )
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -766,7 +743,7 @@ class Neo4jQueries:
                 RETURN a
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -778,7 +755,7 @@ class Neo4jQueries:
                 RETURN DISTINCT a
                 """  # noqa
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -796,7 +773,7 @@ class Neo4jQueries:
                 RETURN e,a
                 """
         )
-        self.logger.debug(msg=query)
+        debug(query)
         return self.__query_executor.query(query, session=session)
 
     # @timing(log_file=NEO4j_QUERY_EXECUTION_TIMES)
@@ -816,7 +793,7 @@ class Neo4jQueries:
                 """
         )
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -828,7 +805,7 @@ class Neo4jQueries:
                 RETURN DISTINCT a
                 """  # noqa
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -840,7 +817,7 @@ class Neo4jQueries:
                 RETURN DISTINCT a
         """  # noqa
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -852,7 +829,7 @@ class Neo4jQueries:
                 RETURN DISTINCT e,r,m
                 """  # noqa
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -873,7 +850,7 @@ class Neo4jQueries:
                 """
         )
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -887,7 +864,7 @@ class Neo4jQueries:
                 RETURN n
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -901,7 +878,7 @@ class Neo4jQueries:
                 RETURN a, type(r) AS t, count(*) AS c
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 
@@ -918,7 +895,7 @@ class Neo4jQueries:
                 RETURN a, TYPE(r) AS t, COUNT(*) AS c
                 """
 
-        self.logger.debug(msg=query)
+        debug(query)
 
         return self.__query_executor.query(query, session=session)
 

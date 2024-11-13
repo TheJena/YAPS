@@ -26,11 +26,11 @@
 
 from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_community.chat_models import ChatOllama
 from langchain_community.llms.ollama import OllamaEndpointNotFoundError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
-from logging import warning
+from langchain_ollama.chat_models import ChatOllama
+from logging import debug, info, warning
 from os.path import abspath
 from re import DOTALL, search
 from SECRET import MY_API_KEY
@@ -288,7 +288,7 @@ class LLM_formatter:
             # Get the matched group from the search
             code_to_write = extracted_text.group(1).removeprefix("python\n")
 
-            # print(code_to_write)
+            debug(code_to_write)
             code_to_write = black(code_to_write)
 
             if io_obj is None:
@@ -300,9 +300,9 @@ class LLM_formatter:
             io_obj.write(code_to_write)
             io_obj.close()
 
-            print(
+            debug(
                 f"Code has been successfully written to {abspath(io_obj.name)}"
             )
             return str(abspath(io_obj.name))
         else:
-            print("No triple-quoted text found.")
+            warning("No triple-quoted text found.")

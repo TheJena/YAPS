@@ -25,18 +25,18 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
-from SECRET import MY_API_KEY
 from graph.structure import (
     create_entity,
     create_column,
     create_relation,
     create_relation_column,
 )
+from logging import debug
 from utils import (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
     keep_random_element_in_place,
 )
-import math
+import pandas as pd
 
 
 def is_number(value):
@@ -52,7 +52,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
     current_entities = dict()
     current_columns = dict()
 
-    used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
+    used_columns_giver = LLM_activities_used_columns()
     # keeping current elements on the graph supporting the creation on neo4j
     entities_to_keep = list()
 
@@ -81,19 +81,20 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
             activity["context"],
             activity["code"],
         )
-        # print(activity['function_name'])
-        # print(df1.head(10))
-        # print(df2.head(10))
-        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(  # noqa
-            used_columns_giver.give_columns(
-                df1, df2, activity_code, activity_description
-            )
+        debug(f"{activity['function_name']=}")
+        used_columns_string = used_columns_giver.give_columns(
+            df1, df2, activity_code, activity_description
         )
-        # print(used_cols)
+        debug(f"{used_columns_string=}")
+        used_cols = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(  # noqa
+            used_columns_string
+        )
+        debug(f"{used_cols=}")
 
-        # #Approach working when the number of rows is the same and
+        # Approach working when the number of rows is the same and
         # the number of columns increase or is the same
         # if len(df1.columns) <= len(df2.columns):
+
         # Iterate over the columns and rows to find differences
         unique_col_in_df1 = set(df1.columns) - set(df2.columns)
         unique_col_in_df2 = set(df2.columns) - set(df1.columns)
@@ -198,7 +199,7 @@ def column_entitiy_vision(changes, current_activities, args, activity_to_zoom):
                     if is_number(old_value) and is_number(new_value):
                         old_val = float(old_value)
                         new_val = float(new_value)
-                        if math.isnan(new_val) and math.isnan(old_val):
+                        if pd.isna(new_val) and pd.isna(old_val):
                             continue
                     if (new_value, col, idx) in current_entities:
                         continue

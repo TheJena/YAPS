@@ -2,6 +2,7 @@ black
 langchain
 langchain_community
 langchain_groq
+langchain_ollama
 matplotlib
 mypy
 neo4j

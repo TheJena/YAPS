@@ -30,17 +30,25 @@ from column_entity_approach import column_entitiy_vision
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import create_activity
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
-from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from LLM.LLM_formatter import LLM_formatter
+from logging import debug, info, INFO, warning, WARNING
 from os.path import abspath, lexists
 from os import remove, symlink
-from SECRET import MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
+from SECRET import black_magic, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
+from traceback import format_exception
 from tracking.tracking import ProvenanceTracker
-from utils import parsed_args, serialize, yaml_load
+from utils import (
+    foreign_modules,
+    initialize_logging,
+    parsed_args,
+    serialize,
+    yaml_load,
+)
 import extracted_code
 import importlib
 
 
+@black_magic
 def wrapper_run_pipeline(args, tracker):
     pipeline_symlink = "extracted_code.py"
     assert abspath(pipeline_symlink) == abspath(extracted_code.__file__), str(
@@ -58,19 +66,26 @@ def wrapper_run_pipeline(args, tracker):
 
     try:
         ret = extracted_code.run_pipeline(args, tracker)
+        debug("detected foreign modules:\n" + "\n".join(foreign_modules()))
     except Exception as e:
         exception_type = type(e).__name__
         exception_message = str(e)
-        print(f"Eccezione catturata: {exception_type} - {exception_message}")
-        return f"{exception_type} - {exception_message}"
+        warning(f"Eccezione catturata: {exception_type} - {exception_message}")
+        debug("\n" + "".join(format_exception(e)))
+        return f"{exception_type} - {exception_message}", tracker.changes
     else:
-        return " "
+        return " ", tracker.changes
     finally:
         if parsed_args().output is not None:
             serialize(ret, parsed_args().output)
 
 
 cli_args = parsed_args()
+initialize_logging(
+    "__debug.log",
+    level=INFO if not parsed_args().quiet else WARNING,
+    debug_mode=parsed_args().verbose,
+)
 
 if cli_args.formatted_pipeline is None:
     # Standardize the structure of the file in a way that provenance
@@ -92,14 +107,6 @@ else:
     activities_descr_dict = yaml_load(cli_args.pipeline_description)
 
 
-used_columns_giver = LLM_activities_used_columns()
-# print(
-#     used_columns_giver.give_columns(
-#         df_before, df_after, code, description
-#     )
-# )
-
-
 # Neo4j initialization
 neo4j = Neo4jFactory.create_neo4j_queries(
     uri="bolt://localhost", user=MY_NEO4J_USERNAME, pwd=MY_NEO4J_PASSWORD
@@ -109,11 +116,10 @@ session = Neo4jConnector().create_session()
 tracker = ProvenanceTracker(save_on_neo4j=True)
 
 # running the preprocessing pipeline
-exception = wrapper_run_pipeline(cli_args, tracker)
+exception, changes = wrapper_run_pipeline(cli_args, tracker)
 
 # Dictionary of all the df before and after the operations
-changes = tracker.changes
-# print(changes)
+debug(f"changes={changes!r}")
 
 current_activities = list()
 current_entities = dict()
@@ -141,6 +147,8 @@ while loop:
         )
         current_activities.append(activity)
 
+    debug(f"{changes=}")
+    debug(f"{current_activities=}")
     if cli_args.prov_entity_level:
         (
             current_entities,
@@ -208,13 +216,22 @@ while loop:
     del current_relations[:]
     del current_relations_column[:]
     del current_columns_to_entities
-    # print("if you want to zoom on one activity select the succession
-    # number of the desired activity, otherwise type 'N' ") answer =
-    # input(">") if answer == 'N':
-    loop = False
-    # neo4j.delete_all()
-    # else:
-    #     neo4j.delete_all()
-    #     activity_to_zoom = int(answer)
+
+    if True:
+        loop = False
+    else:
+        info(
+            """\
+            if you want to zoom on one activity select the
+            succession number of the desired activity, otherwise
+            type 'N'
+        """
+        )
+        answer = input(">")
+        if answer == "N":
+            loop = False
+        else:
+            neo4j.delete_all()
+            activity_to_zoom = int(answer)
 
 session.close()

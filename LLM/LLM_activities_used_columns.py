@@ -25,8 +25,9 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from langchain.prompts import PromptTemplate
-from logging import warning
+from logging import debug, warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
+from SECRET import black_magic  # from functools import lru_cache
 from re import DOTALL, search
 from utils import parsed_args
 
@@ -69,18 +70,30 @@ class LLM_activities_used_columns:
         )
 
     def give_columns(self, df_before, df_after, code, description) -> str:
-        response = self.chat_llm.invoke(
+        debug(
+            f"activity_code={code!r},\t{description=}\n"
+            f"df_before=\n{df_before.to_string()}\n"
+            f"df_after=\n{df_after.to_string()}"
+        )
+        response = _give_columns_llm_invokation(
             {
                 "code": code,
                 "description": description,
-                "df_after": df_after,
-                "df_before": df_before,
+                "df_after": df_after.to_string(),
+                "df_before": df_before.to_string(),
             }
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
 
         if extracted_text:
-            return extracted_text.group(1).removeprefix("python\n")
+            extracted_text = extracted_text.group(1).removeprefix("python\n")
+            debug(extracted_text)
+            return extracted_text
         else:
-            print("No triple-quoted text found.")
+            warning("No triple-quoted text found.")
+
+
+@black_magic
+def _give_columns_llm_invokation(context_dict):
+    return LLM_activities_used_columns().chat_llm.invoke(context_dict)

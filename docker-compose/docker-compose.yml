@@ -4,6 +4,7 @@ services:
     container_name: neo4j
     restart: unless-stopped
     volumes:
+      - neo4j_bkp:/backups
       - neo4j_data:/data
     environment:
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
@@ -12,7 +13,7 @@ services:
       - NEO4J_client_allow__telemetry=false
       - NEO4J_db_temporal_timezone=Europe/Rome
       - NEO4J_dbms_usage__report_enabled=false
-      - NEO4J_initial_dbms_default__database=YAPS
+      - NEO4J_initial_dbms_default__database=${MY_NEO4J_DB_NAME}
       - NEO4J_server_https_enabled=false
       - NEO4J_server_jvm_additional="-XX:+ExitOnOutOfMemoryError"
       - NEO4J_server_logs_debug_enabled=false
@@ -50,12 +51,18 @@ services:
     platform: linux/amd64
 
 volumes:
+  neo4j_bkp:
+    driver: local
+    driver_opts:
+      o: "bind,rw"
+      type: none
+      device: ${MY_NEO4J_HOST_BKP_DIR}
   neo4j_data:
     driver: local
     driver_opts:
       o: "bind,rw"
       type: none
-      device: ${MY_NEO4J_DATA_DIR}
+      device: ${MY_NEO4J_HOST_DATA_DIR}
   ollama_data:
     driver: local
     driver_opts:
