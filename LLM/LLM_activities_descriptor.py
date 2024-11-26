@@ -183,10 +183,11 @@ class LLM_activities_descriptor:
         self.pipeline_content = black(io_obj.read())
 
     def descript(self, io_obj=None) -> str:
-        response = self.chat_llm.invoke(
+        response = _descript_llm_invokation(
             {
                 "pipeline_content": self.pipeline_content,
-            }
+            },
+            io_obj,
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
@@ -216,3 +217,8 @@ class LLM_activities_descriptor:
             return descr_to_write
         else:
             warning("No triple-quoted text found.")
+
+
+@black_magic
+def _descript_llm_invokation(context_dict, io_obj):
+    return LLM_activities_descriptor(io_obj).chat_llm.invoke(context_dict)

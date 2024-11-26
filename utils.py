@@ -25,7 +25,7 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 from argparse import (
-    ArgumentDefaultsHelpFormatter,
+    RawDescriptionHelpFormatter,
     ArgumentParser,
     FileType,
     Namespace,
@@ -48,6 +48,7 @@ from os.path import abspath, join as join_path, isdir, isfile
 from SECRET import black_magic  # from functools import lru_cache
 from subprocess import check_output
 from tempfile import NamedTemporaryFile
+from textwrap import dedent, fill, indent
 import logging
 import pickle
 import random
@@ -255,38 +256,48 @@ def parsed_args() -> Namespace:
 
     parser = ArgumentParser(
         allow_abbrev=True,
-        description="""\
-            The sinking of the Titanic is an infamous shipwreck
-            happened on April 15, 1912.  During her maiden voyage, the
-            widely considered "unsinkable" RMS Titanic sank after
-            colliding with an iceberg.  Unfortunately, there weren’t
-            enough lifeboats for everyone on board, resulting in the
-            death of 1'502 out of 2'224 passengers and crew.
+        description=indent(
+            "\n\n".join(
+                fill(" ".join(p.split()), width=80 - 8)
+                for p in (
+                    """The sinking of the Titanic is an infamous
+                       shipwreck happened on April 15, 1912.  During
+                       her maiden voyage, the widely considered
+                       `unsinkable' RMS Titanic sank after colliding
+                       with an iceberg.  Unfortunately, there weren't
+                       enough lifeboats for everyone on board,
+                       resulting in the death of 1'502 out of 2'224
+                       passengers and crew.""",
+                    """While there was some element of luck involved
+                       in surviving, it seems some groups of people
+                       were more likely to survive than others.""",
+                    """The chosen default data-engineering pipeline is
+                       supposed to pre-process/prepare a dataset for a
+                       predictive model able to answers the question:
+                       'Who was more likely to survive?'""",
+                )
+            )
+            + dedent(
+                """
 
-            While there was some element of luck involved in
-            surviving, it seems some groups of people were more likely
-            to survive than others.
-
-            The chosen default data-engineering pipeline is supposed
-            to pre-process/prepare a dataset for a predictive model
-            able to answers the question: "Who was more likely to
-            survive?"
-
-            Given feature list:
-            - Passenger ID
-            - Survived    (0 = No, 1 = Yes)
-            - Pclass      (ticket class: 1 = 1st, 2 = 2nd, 3 = 3rd)
-            - Name        (passenger name)
-            - Sex         (gender)
-            - Age         (in years)
-            - SibSp       (No. of siblings / spouses aboard the Titanic)
-            - Parch       (No. of parents / children aboard the Titanic)
-            - Ticket      (ticket number)
-            - Fare        (passenger fare)
-            - Cabin       (cabin number)
-            - Embarked    (port of embarkation: C = Cherbourg, Q =
-                           Queenstown, S = Southampton)""",
-        formatter_class=ArgumentDefaultsHelpFormatter,
+                Given feature list:
+                - Passenger ID
+                - Survived    (0 = No, 1 = Yes)
+                - Pclass      (ticket class: 1 = 1st, 2 = 2nd, 3 = 3rd)
+                - Name        (passenger name)
+                - Sex         (gender)
+                - Age         (in years)
+                - SibSp       (No. of siblings / spouses aboard the Titanic)
+                - Parch       (No. of parents / children aboard the Titanic)
+                - Ticket      (ticket number)
+                - Fare        (passenger fare)
+                - Cabin       (cabin number)
+                - Embarked    (port of embarkation: C = Cherbourg, Q =
+                               Queenstown, S = Southampton)"""
+            ),
+            prefix="\t",
+        ),
+        formatter_class=RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "-i",

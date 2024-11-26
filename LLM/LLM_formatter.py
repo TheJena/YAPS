@@ -33,7 +33,7 @@ from langchain_ollama.chat_models import ChatOllama
 from logging import debug, info, warning
 from os.path import abspath
 from re import DOTALL, search
-from SECRET import MY_API_KEY
+from SECRET import black_magic, MY_API_KEY
 from textwrap import dedent
 from utils import black, parsed_args, set_formatted_pipeline_path
 
@@ -69,12 +69,16 @@ class Groq(ChatLLM):
 
 
 class Ollama(ChatLLM):
-    def __init__(self, prompt, model=parsed_args().llm_name):
+    def __init__(
+        self,
+        prompt,
+        model=parsed_args().llm_name,
+    ):
         self.prompt = prompt
         self.chat = ChatOllama(
             # be aware that adding parameters here will probably
             # invalidate
-            model=model
+            model=model,
         )
         self.parser = StrOutputParser()
 
@@ -275,11 +279,12 @@ class LLM_formatter:
         self.pipeline_content = black(io_obj.read())
 
     def standardize(self, io_obj=None) -> str:
-        response = self.chat_llm.invoke(
+        response = _standardize_llm_invokation(
             {
                 "pipeline_content": self.pipeline_content,
                 "question": "Description and Suggestions:",
-            }
+            },
+            io_obj=io_obj,
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
@@ -306,3 +311,8 @@ class LLM_formatter:
             return str(abspath(io_obj.name))
         else:
             warning("No triple-quoted text found.")
+
+
+@black_magic
+def _standardize_llm_invokation(context_dict, io_obj):
+    return LLM_formatter(io_obj).chat_llm.invoke(context_dict)

@@ -71,6 +71,8 @@ neo4j-dump:
 		echo 'source <(make env)';				\
 		sleep 5;						\
 	fi
+	docker exec -it neo4j neo4j-admin server stop
+	chown -R 7474:7474 $(MY_NEO4J_HOST_BKP_DIR)
 	docker run \
 		--interactive						\
 		--rm							\
@@ -94,6 +96,7 @@ neo4j-load:
 		sleep 5;						\
 	fi
 	cp -v $(BKP_NAME) $(MY_NEO4J_HOST_BKP_DIR)/$(MY_NEO4J_DB_NAME).dump
+	chown -R 7474:7474 $(MY_NEO4J_HOST_BKP_DIR)
 	docker run							\
 		--interactive						\
 		--rm							\
@@ -105,6 +108,13 @@ neo4j-load:
 				--from-path=/backups			\
 				--overwrite-destination=true		\
 				$(MY_NEO4J_DB_NAME)
+	docker run							\
+		--detach						\
+		--rm							\
+		--tty							\
+		--volume=$(MY_NEO4J_HOST_DATA_DIR):/data		\
+	       neo4j:community						\
+	       neo4j-admin server start
 
 ollama-pull:
 	docker exec --detach --interactive --tty ollama			\
