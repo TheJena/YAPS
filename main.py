@@ -49,6 +49,89 @@ import importlib
 
 
 @black_magic
+def add_to_neo4j(
+    neo4j,
+    session,
+    cli_args,
+    current_activities,
+    current_entities,
+    current_columns,
+    current_relations,
+    current_relations_column,
+    derivations,
+    derivations_column,
+    current_columns_to_entities,
+    entities_to_keep,
+):
+    """
+    Add activities, entities, derivations, and relations to Neo4j
+
+    Args:
+        neo4j: Neo4j instance.
+        session: Neo4j session.
+        cli_args: Command line arguments.
+        current_activities: List of current activities.
+        current_entities: Dictionary of current entities.
+        current_columns: Dictionary of current columns.
+        derivations: List of derivations.
+        current_relations: List of current relations.
+        current_relations_column: List of current relations columns.
+        derivations_column: List of derivations columns.
+        current_columns_to_entities: Dictionary of current columns to entities.
+        entities_to_keep: List of entities to keep.
+    """
+    # Create constraints in Neo4j
+    neo4j.create_constraint(session=session)
+
+    # Add activities, entities, derivations, and relations to the Neo4j Graph
+    neo4j.add_activities(current_activities, session)
+    if cli_args.granularity_level == 1:
+        filtered_list = [
+            entity
+            for entity in current_entities.values()
+            if entity["id"] in entities_to_keep
+        ]
+        neo4j.add_entities(filtered_list)
+    else:
+        neo4j.add_entities(list(current_entities.values()))
+    neo4j.add_columns(list(current_columns.values()))
+    neo4j.add_derivations(derivations)
+    neo4j.add_relations(current_relations)
+    neo4j.add_relations_columns(current_relations_column)
+    neo4j.add_derivations_columns(derivations_column)
+
+    relations = [
+        [act, current_columns_to_entities[act]]
+        for act in current_columns_to_entities.keys()
+    ]
+    neo4j.add_relation_entities_to_column(relations)
+
+    pairs = [
+        {
+            "act_in_id": current_activities[i]["id"],
+            "act_out_id": current_activities[i + 1]["id"],
+        }
+        for i in range(len(current_activities) - 1)
+    ]
+    neo4j.add_next_operations(pairs)
+
+
+def get_current_activities(activities_descr_dict, exception_text):
+    """Create the activities found by the LLM"""
+    ret = list()
+    for act_name in activities_descr_dict.keys():
+        act_context, act_code = activities_descr_dict[act_name]
+        activity = create_activity(
+            function_name=act_name,
+            context=act_context,
+            code=act_code,
+            exception_text=exception_text,
+        )
+        ret.append(activity)
+    debug(f"current_activities={ret}")
+    return ret
+
+
 def wrapper_run_pipeline(args, tracker):
     pipeline_symlink = "extracted_code.py"
     assert abspath(pipeline_symlink) == abspath(extracted_code.__file__), str(
@@ -121,117 +204,43 @@ exception, changes = wrapper_run_pipeline(cli_args, tracker)
 # Dictionary of all the df before and after the operations
 debug(f"changes={changes!r}")
 
-current_activities = list()
-current_entities = dict()
-current_columns = dict()
-current_derivations = list()
-current_entities_column = list()
-entities_to_keep = list()
-derivations = list()
-derivations_column = list()
-current_relations = list()
-current_relations_column = list()
-current_columns_to_entities = dict()
 
-loop = True
-activity_to_zoom = None
-while loop:
-    # Create the activities found by the llm
-    for act_name in activities_descr_dict.keys():
-        act_context, act_code = activities_descr_dict[act_name]
-        activity = create_activity(
-            function_name=act_name,
-            context=act_context,
-            code=act_code,
-            exception_text=exception,
-        )
-        current_activities.append(activity)
 
-    debug(f"{changes=}")
-    debug(f"{current_activities=}")
-    if cli_args.prov_entity_level:
-        (
-            current_entities,
-            current_columns,
-            current_relations,
-            current_relations_column,
-            derivations,
-            derivations_column,
-            current_columns_to_entities,
-            entities_to_keep,
-        ) = column_entitiy_vision(
-            changes, current_activities, cli_args, activity_to_zoom
-        )
-    elif cli_args.prov_column_level:
-        (
-            current_relations_column,
-            current_columns,
-            derivations_column,
-        ) = column_vision(changes, current_activities)
+try:
+    current_activities = get_current_activities(
+        activities_descr_dict, exception
+    )
 
-    # Create constraints in Neo4j
-    neo4j.create_constraint(session=session)
+    (
+        current_entities,
+        current_columns,
+        current_relations,
+        current_relations_column,
+        derivations,
+        derivations_column,
+        current_columns_to_entities,
+        entities_to_keep,
+    ) = (
+        column_entitiy_vision(changes, current_activities, cli_args)
+        if cli_args.prov_entity_level
+        else column_vision(changes, current_activities, cli_args)
+    )
 
-    # Add activities, entities, derivations, and relations to the Neo4j Graph
-    neo4j.add_activities(current_activities, session)
-    if cli_args.granularity_level == 1:
-        filtered_list = [
-            entity
-            for entity in current_entities.values()
-            if entity["id"] in entities_to_keep
-        ]
-        neo4j.add_entities(filtered_list)
-    else:
-        neo4j.add_entities(list(current_entities.values()))
-    neo4j.add_columns(list(current_columns.values()))
-    neo4j.add_derivations(derivations)
-    neo4j.add_relations(current_relations)
-    neo4j.add_relations_columns(current_relations_column)
-    neo4j.add_derivations_columns(derivations_column)
-
-    relations = list()
-    for act in current_columns_to_entities.keys():
-        relation = list()
-        relation.append(act)
-        relation.append(current_columns_to_entities[act])
-        relations.append(relation)
-    neo4j.add_relation_entities_to_column(relations)
-
-    pairs = list()
-    for i in range(len(current_activities) - 1):
-        pairs.append(
-            {
-                "act_in_id": current_activities[i]["id"],
-                "act_out_id": current_activities[i + 1]["id"],
-            }
-        )
-
-    neo4j.add_next_operations(pairs)
-
-    del current_activities[:]
-    del current_entities
-    del current_columns
-    del derivations[:]
-    del derivations_column[:]
-    del current_relations[:]
-    del current_relations_column[:]
-    del current_columns_to_entities
-
-    if True:
-        loop = False
-    else:
-        info(
-            """\
-            if you want to zoom on one activity select the
-            succession number of the desired activity, otherwise
-            type 'N'
-        """
-        )
-        answer = input(">")
-        if answer == "N":
-            loop = False
-        else:
-            neo4j.delete_all()
-            activity_to_zoom = int(answer)
-
-session.close()
+    add_to_neo4j(
+        neo4j,
+        session,
+        cli_args,
+        #
+        current_activities,
+        #
+        current_entities,
+        current_columns,
+        current_relations,
+        current_relations_column,
+        derivations,
+        derivations_column,
+        current_columns_to_entities,
+        entities_to_keep,
+    )
+finally:
+    session.close()

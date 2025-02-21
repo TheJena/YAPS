@@ -42,7 +42,9 @@ def is_number(value):
         return False
 
 
-def column_vision(changes, current_activities):
+def column_vision(changes, current_activities, args):
+    assert args.prov_column_level
+
     derivations_column = list()
     current_relations_column = list()
     current_columns = dict()
@@ -249,4 +251,21 @@ def column_vision(changes, current_activities):
                 same=False,
             )
         )
-    return current_relations_column, current_columns, derivations_column
+
+    # unified interface with column_entity_approach.column_entity_vision()
+    current_entities = dict()
+    current_relations = list()
+    derivations = list()
+    current_columns_to_entities = dict()
+    entities_to_keep = list()
+
+    return (
+        current_entities,
+        current_columns,
+        current_relations,
+        current_relations_column,
+        derivations,
+        derivations_column,
+        current_columns_to_entities,
+        entities_to_keep,
+    )
