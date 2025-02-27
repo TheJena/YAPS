@@ -47,11 +47,12 @@ To use the provenance suite, follow these steps:
 
    `workon --cd YAPS`
 
-1. Initialize secrets, replacing all the occurences found with:
+1. Define in SECRET.py all the occurences found with:
 
    ```
    grep -HonrE "MY_[A-Z4_]+" . | fgrep -v "/.git/"
 
+   # MY_API_KEY                            ~> https://console.groq.com/keys
    # MY_NEO4J_USERNAME / MY_NEO4J_PASSWORD ~> Neo4j credentials
    # MY_NEO4J_DATA_DIR                     ~> where Neo4j will store graphs
    # MY_OLLAMA_DATA_DIR                    ~> where Ollama will store models
