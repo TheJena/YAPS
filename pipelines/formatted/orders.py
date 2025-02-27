@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copyright (C) 2024      Federico Motta            <federico.motta@unimore.it>
+# Copyright (C) 2024-2025 Federico Motta            <federico.motta@unimore.it>
 #                         Pasquale Leonardo Lazzaro <pas.lazzaro@stud.uniroma3.it>
 #                         Marialaura Lazzaro        <mar.lazzaro1@stud.uniroma3.it>
 # Copyright (C) 2022-2024 Luca Gregori              <luca.gregori@uniroma3.it>
@@ -24,9 +24,6 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import pandas as pd
 
@@ -36,38 +33,16 @@ def run_pipeline(args, tracker) -> None:
 
     df = pd.read_csv(input_path)
 
-    if args.frac != 0.0:
-        # Perform sampling on the dataframe
-        df = df.sample(frac=args.frac)
-
     # Subscribe dataframe
     df = tracker.subscribe(df)
-    tracker.analyze_changes(df)
-
-    # Drop rows with missing values
-    df = df.dropna()
     tracker.analyze_changes(df)
 
     # Separate features and target variable
     df = df.iloc[:, :-1]
     tracker.analyze_changes(df)
 
-    # Impute missing values in the numerical columns (assuming columns
-    # 1 and 2 are numerical)
-    imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
-    df.iloc[:, 1:3] = imputer.fit_transform(df.iloc[:, 1:3])
-    tracker.analyze_changes(df)
-
-    # Apply OneHotEncoder to the first column (assuming it is categorical)
-    ct = ColumnTransformer(
-        transformers=[("encoder", OneHotEncoder(), [0])],
-        remainder="passthrough",
-    )
-    df = pd.DataFrame(ct.fit_transform(df))
-    tracker.analyze_changes(df)
-
-    # Ensure column names are maintained or regenerated after transformation
-    df.columns = [f"feature_{i}" for i in range(df.shape[1])]
+    # Impute missing values in the numerical column
+    df["Age"].fillna(df["Age"].mean(), inplace=True)
     tracker.analyze_changes(df)
 
     return df

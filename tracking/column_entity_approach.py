@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copyright (C) 2024      Federico Motta            <federico.motta@unimore.it>
+# Copyright (C) 2024-2025 Federico Motta            <federico.motta@unimore.it>
 #                         Pasquale Leonardo Lazzaro <pas.lazzaro@stud.uniroma3.it>
 #                         Marialaura Lazzaro        <mar.lazzaro1@stud.uniroma3.it>
 # Copyright (C) 2022-2024 Luca Gregori              <luca.gregori@uniroma3.it>
@@ -151,7 +151,7 @@ def column_entitiy_vision(changes, current_activities, args):
                                 "used": str(column["id"]),
                             }
                         )
-                        old_col = column["instance"]
+                        old_col = column["name"]
                         break
             for idx in df2.index:
                 new_value = df2.at[idx, col]

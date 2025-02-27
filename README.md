@@ -156,7 +156,7 @@ and license notices.
 
 
 ```
-Copyright (C) 2024      Federico Motta            <federico.motta@unimore.it>
+Copyright (C) 2024-2025 Federico Motta            <federico.motta@unimore.it>
                         Pasquale Leonardo Lazzaro <pas.lazzaro@stud.uniroma3.it>
                         Marialaura Lazzaro        <mar.lazzaro1@stud.uniroma3.it>
 Copyright (C) 2022-2024 Luca Gregori              <luca.gregori@uniroma3.it>

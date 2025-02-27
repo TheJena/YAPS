@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copyright (C) 2024      Federico Motta            <federico.motta@unimore.it>
+# Copyright (C) 2024-2025 Federico Motta            <federico.motta@unimore.it>
 #                         Pasquale Leonardo Lazzaro <pas.lazzaro@stud.uniroma3.it>
 #                         Marialaura Lazzaro        <mar.lazzaro1@stud.uniroma3.it>
 # Copyright (C) 2022-2024 Luca Gregori              <luca.gregori@uniroma3.it>
@@ -25,8 +25,6 @@
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from column_approach import column_vision
-from column_entity_approach import column_entitiy_vision
 from graph.neo4j import Neo4jConnector, Neo4jFactory
 from graph.structure import create_activity
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
@@ -36,6 +34,8 @@ from os.path import abspath, lexists
 from os import remove, symlink
 from SECRET import black_magic, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from traceback import format_exception
+from tracking.column_approach import column_vision
+from tracking.column_entity_approach import column_entitiy_vision
 from tracking.tracking import ProvenanceTracker
 from utils import (
     foreign_modules,

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copyright (C) 2024      Federico Motta            <federico.motta@unimore.it>
+# Copyright (C) 2024-2025 Federico Motta            <federico.motta@unimore.it>
 #                         Pasquale Leonardo Lazzaro <pas.lazzaro@stud.uniroma3.it>
 #                         Marialaura Lazzaro        <mar.lazzaro1@stud.uniroma3.it>
 # Copyright (C) 2022-2024 Luca Gregori              <luca.gregori@uniroma3.it>
@@ -169,36 +169,6 @@ class LLM_formatter:
                 kmeans = KMeans(n_clusters=3, random_state=0)
                 kmeans.fit(X_train_norm)
                 
-                sns.scatterplot(
-                    data=X_train,
-                    hue=kmeans.labels_,
-                    x="longitude",
-                    y="latitude",
-                )
-                plt.show()
-                
-                # Add cluster labels to the original DataFrame
-                df["cluster"] = kmeans.predict(
-                    preprocessing.normalize(df[["latitude", "longitude"]])
-                )
-                
-                columns = [
-                    "checking",
-                    "credit_history",
-                    "purpose",
-                    "savings",
-                    "employment",
-                    "other_debtors",
-                    "property",
-                    "other_inst",
-                    "housing",
-                    "job",
-                ]
-                for i, col in enumerate(columns):
-                    dummies = pd.get_dummies(df[col])
-                    df_dummies = dummies.add_prefix(col + "_")
-                    df = df.join(df_dummies)
-                    df = df.drop([col], axis=1)
                 
                 response:
                 # Split data into training and testing sets
@@ -218,43 +188,6 @@ class LLM_formatter:
                 # Fit KMeans clustering model to the normalized training data
                 kmeans = KMeans(n_clusters=3, random_state=0)
                 kmeans.fit(X_train_norm)
-                tracker.analyze_changes(df)
-                
-                # Scatter plot of longitude vs latitude with hue as
-                # cluster labels
-                sns.scatterplot(
-                    data=X_train,
-                    hue=kmeans.labels_,
-                    x="longitude",
-                    y="latitude",
-                )
-                plt.show()
-                tracker.analyze_changes(df)
-                
-                # Add cluster labels to the original DataFrame
-                df["cluster"] = kmeans.predict(
-                    preprocessing.normalize(df[["latitude", "longitude"]])
-                )
-                tracker.analyze_changes(df)
-                
-                # One-hot encode categorical variables
-                columns = [
-                    "checking",
-                    "credit_history",
-                    "purpose",
-                    "savings",
-                    "employment",
-                    "other_debtors",
-                    "property",
-                    "other_inst",
-                    "housing",
-                    "job",
-                ]
-                for i, col in enumerate(columns):
-                    dummies = pd.get_dummies(df[col])
-                    df_dummies = dummies.add_prefix(col + "_")
-                    df = df.join(df_dummies)
-                    df = df.drop([col], axis=1)
                 tracker.analyze_changes(df)
                 
                 Cleaning Pipeline: {pipeline_content}
