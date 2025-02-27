@@ -95,5 +95,7 @@ class ChatBot(object):
         elif type == "USED":
             question = f"Why this code use this {input}?"
 
-        response = self.chat_chain.invoke({"context": context, "question": question})
+        response = self.chat_chain.invoke(
+            {"context": context, "question": question}
+        )
         return response["text"]

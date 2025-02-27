@@ -28,12 +28,15 @@ from langchain.prompts import PromptTemplate
 from logging import debug, info, warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
 from re import DOTALL, search
+from SECRET import black_magic  # from functools import lru_cache
 from textwrap import dedent
 from utils import black, parsed_args, yaml_dump
 
 
 class LLM_activities_descriptor:
-    def __init__(self, io_obj):
+    def __init__(self, io_obj=None, pipeline_content=None):
+        assert io_obj is not None or pipeline_content is not None
+
         # Template per descrivere il grafo e suggerire miglioramenti
         # alla pipeline di pulizia dei dati
         PIPELINE_DESCRIPTOR_TEMPLATE = (
@@ -180,14 +183,16 @@ class LLM_activities_descriptor:
         )
 
         # cleaning pipeline in text format
-        self.pipeline_content = black(io_obj.read())
+        self.pipeline_content = black(
+            io_obj.read() if io_obj is not None else pipeline_content
+        )
 
     def descript(self, io_obj=None) -> str:
         response = _descript_llm_invokation(
             {
                 "pipeline_content": self.pipeline_content,
             },
-            io_obj,
+            self.pipeline_content,
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
@@ -204,21 +209,31 @@ class LLM_activities_descriptor:
             )
 
             if io_obj is None:
-                io_obj = open("described_activities.yaml", "w")
+                io_obj = "described_activities.yaml"
 
-            if io_obj.seekable:
-                io_obj.seek(0)  # truncate file
-            yaml_dump(code=descr_to_write, stream=io_obj)
-            io_obj.close()
+            debug(f"{io_obj!r}")
+            yaml_dump(code=descr_to_write, io_obj=io_obj)
 
-            debug(
-                f"Description has been successfully written to {io_obj.name}"
-            )
+            if io_obj == "described_activities.yaml":
+                info(f"Please move {io_obj!s} to its caching location!")
+            else:
+                debug(
+                    f"Description has been successfully written to {io_obj!r}"
+                )
             return descr_to_write
         else:
             warning("No triple-quoted text found.")
 
 
 @black_magic
-def _descript_llm_invokation(context_dict, io_obj):
-    return LLM_activities_descriptor(io_obj).chat_llm.invoke(context_dict)
+def _descript_llm_invokation(context_dict, pipeline_content):
+    debug(
+        f"{_descript_llm_invokation.__name__}(context_dict=\n{'#'*80}\n"
+        + LLM_activities_descriptor(pipeline_content=pipeline_content)
+        .prompt.template.format(**context_dict)
+        .strip()
+        + f"\n{'#'*80}\n)"
+    )
+    return LLM_activities_descriptor(
+        pipeline_content=pipeline_content,
+    ).chat_llm.invoke(context_dict)

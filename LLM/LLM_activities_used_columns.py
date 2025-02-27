@@ -75,6 +75,7 @@ class LLM_activities_used_columns:
             f"df_before=\n{df_before.to_string()}\n"
             f"df_after=\n{df_after.to_string()}"
         )
+        debug(f"{df_before.shape=}\t{df_after.shape=}")
         response = _give_columns_llm_invokation(
             {
                 "code": code,
@@ -96,4 +97,9 @@ class LLM_activities_used_columns:
 
 @black_magic
 def _give_columns_llm_invokation(context_dict):
+    debug(
+        f"{_give_columns_llm_invokation.__name__}(context_dict=\n{'#'*80}\n"
+        + PIPELINE_STANDARDIZER_TEMPLATE.format(**context_dict).strip()
+        + f"\n{'#'*80}\n)"
+    )
     return LLM_activities_used_columns().chat_llm.invoke(context_dict)

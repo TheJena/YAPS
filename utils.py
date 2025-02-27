@@ -49,6 +49,7 @@ from SECRET import black_magic  # from functools import lru_cache
 from subprocess import check_output
 from tempfile import NamedTemporaryFile
 from textwrap import dedent, fill, indent
+import gzip
 import logging
 import pickle
 import random
@@ -151,7 +152,7 @@ def black(pycode, line_length=79, target_version="py312"):
             text=True,
         )
     except Exception as e:
-        warning(f"Black failed ({e!s})")
+        warning(f"Black failed ({e!s})\n\n{pycode!s}")
         return pycode
 
 
@@ -405,27 +406,53 @@ def parsed_args() -> Namespace:
 
 def serialize(data, io_obj):
     assert io_obj is not None
+    debug(f"{io_obj!r}")
+    if not hasattr(io_obj, "name"):
+        assert isinstance(
+            io_obj, str
+        ), "Please provide io_obj|str, got {io_obj!r} instead"
+        if "." not in io_obj:
+            io_obj += ".pkl.gz"
+        io_obj = open(io_obj, "w")
+    debug(f"{io_obj!r}")
     if (
         (io_obj.name.endswith(".csv") or "stdout" in io_obj.name)
         and hasattr(data, "to_csv")
         and callable(getattr(data, "to_csv"))
     ):
-        data.loc[:, sorted(data.columns, key=str.lower)].sort_index().to_csv(
-            io_obj
+        debug("detected CSV output format")
+        data.loc[
+            :,
+            sorted(data.columns, key=str.lower),
+        ].sort_index().to_csv(
+            io_obj if "stdout" in io_obj.name else io_obj.name
         )
     elif (
         io_obj.name.endswith(".xlsx")
         and hasattr(data, "to_excel")
         and callable(getattr(data, "to_excel"))
     ):
-        data.loc[:, sorted(data.columns, key=str.lower)].sort_index().to_excel(
-            io_obj
-        )
+        debug("detected EXCEL output format")
+        data.loc[
+            :,
+            sorted(data.columns, key=str.lower),
+        ].sort_index().to_excel(io_obj.name)
     else:
+        debug("falling back to default GZIPPED PICKLE output format")
         pickle.dump(
             data,
-            open(".".join(io_obj.name.split(".")[:-1] + ["pkl"]), "wb"),
+            (
+                gzip.open(
+                    ".".join(io_obj.name.split(".")[:-2] + ["pkl", "gz"]),
+                    "wb",
+                )
+                if io_obj.name.endswith(".gz")
+                else open(
+                    ".".join(io_obj.name.split(".")[:-1] + ["pkl"]), "wb"
+                )
+            ),
         )
+    debug(f"serialized data to {io_obj!r}")
 
 
 def set_formatted_pipeline_path(path):
@@ -437,11 +464,20 @@ def yaml_dump(code=None, data=None, io_obj=None):
     assert io_obj is not None, repr(io_obj)
     assert code is not None or data is not None, f"{code!r}\n{data!r}"
 
+    if isinstance(io_obj, str):
+        assert io_obj.endswith(".yaml"), repr(io_obj)
+        io_obj = open(io_obj, "w")
+
     if code is not None:
         data = i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
             code
         )
+
+    if io_obj.seekable:
+        io_obj.seek(0)  # truncate file
+    debug(f"{io_obj!r}")
     yaml.dump(data, default_flow_style=False, Dumper=SafeDumper, stream=io_obj)
+    io_obj.close()
 
 
 def yaml_load(io_obj):

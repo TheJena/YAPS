@@ -26,7 +26,6 @@
 
 from LLM.LLM_activities_used_columns import LLM_activities_used_columns
 from logging import debug, info, warning
-from SECRET import MY_API_KEY
 from graph.structure import create_column, create_relation_column
 from utils import (
     i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine,
@@ -49,7 +48,7 @@ def column_vision(changes, current_activities, args):
     current_relations_column = list()
     current_columns = dict()
 
-    used_columns_giver = LLM_activities_used_columns(api_key=MY_API_KEY)
+    used_columns_giver = LLM_activities_used_columns()
 
     for act in changes.keys():
         generated_columns = list()

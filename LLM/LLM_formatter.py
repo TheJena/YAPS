@@ -24,6 +24,7 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
+from httpx import ConnectError
 from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_community.llms.ollama import OllamaEndpointNotFoundError
@@ -33,7 +34,8 @@ from langchain_ollama.chat_models import ChatOllama
 from logging import debug, info, warning
 from os.path import abspath
 from re import DOTALL, search
-from SECRET import black_magic, MY_API_KEY
+from SECRET import black_magic  # from functools import lru_cache
+from SECRET import MY_API_KEY
 from textwrap import dedent
 from utils import black, parsed_args, set_formatted_pipeline_path
 
@@ -88,8 +90,8 @@ class Ollama(ChatLLM):
                 | self.chat
                 | self.parser
             ).invoke({"user": "ping"})
-        except OllamaEndpointNotFoundError as e:
-            if "404" in str(e):
+        except (ConnectError, OllamaEndpointNotFoundError) as e:
+            if "111" in str(e) or "404" in str(e):
                 raise SystemExit(
                     "The model was not found; please check for typos "
                     "by running:\n\tdocker exec --interactive --tty ollama "
@@ -248,4 +250,9 @@ class LLM_formatter:
 
 @black_magic
 def _standardize_llm_invokation(context_dict, io_obj):
+    debug(
+        f"{_standardize_llm_invokation.__name__}(context_dict=\n{'#'*80}\n"
+        + PIPELINE_FORMATTER_TEMPLATE.format(**context_dict)
+        + f"\n{'#'*80}\n)"
+    )
     return LLM_formatter(io_obj).chat_llm.invoke(context_dict)

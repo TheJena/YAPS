@@ -32,7 +32,8 @@ from LLM.LLM_formatter import LLM_formatter
 from logging import debug, info, INFO, warning, WARNING
 from os.path import abspath, lexists
 from os import remove, symlink
-from SECRET import black_magic, MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
+from SECRET import black_magic  # from functools import lru_cache
+from SECRET import MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from traceback import format_exception
 from tracking.column_approach import column_vision
 from tracking.column_entity_approach import column_entitiy_vision
@@ -48,7 +49,6 @@ import extracted_code
 import importlib
 
 
-@black_magic
 def add_to_neo4j(
     neo4j,
     session,
@@ -132,6 +132,7 @@ def get_current_activities(activities_descr_dict, exception_text):
     return ret
 
 
+@black_magic
 def wrapper_run_pipeline(args, tracker):
     pipeline_symlink = "extracted_code.py"
     assert abspath(pipeline_symlink) == abspath(extracted_code.__file__), str(
@@ -149,6 +150,8 @@ def wrapper_run_pipeline(args, tracker):
 
     try:
         ret = extracted_code.run_pipeline(args, tracker)
+        if parsed_args().output is not None:
+            serialize(ret, parsed_args().output)
         debug("detected foreign modules:\n" + "\n".join(foreign_modules()))
     except Exception as e:
         exception_type = type(e).__name__
@@ -157,10 +160,8 @@ def wrapper_run_pipeline(args, tracker):
         debug("\n" + "".join(format_exception(e)))
         return f"{exception_type} - {exception_message}", tracker.changes
     else:
-        return " ", tracker.changes
-    finally:
-        if parsed_args().output is not None:
-            serialize(ret, parsed_args().output)
+        ret = " ", tracker.changes
+        return ret
 
 
 cli_args = parsed_args()
@@ -203,7 +204,6 @@ exception, changes = wrapper_run_pipeline(cli_args, tracker)
 
 # Dictionary of all the df before and after the operations
 debug(f"changes={changes!r}")
-
 
 
 try:

@@ -3,6 +3,7 @@
 *.orig
 *.patch
 *.pkl
+BLACK_MAGIC
 
 # Lazzaro's
 /PL
