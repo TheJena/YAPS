@@ -20,6 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
+from math import floor
 import pandas as pd
 
 
@@ -30,17 +31,30 @@ def run_pipeline(args, tracker) -> None:
 
     # Subscribe dataframe
     df = tracker.subscribe(df)
+    tmp_df = tracker.subscribe(pd.DataFrame())
 
     df = df.drop(columns="X")
 
-    # During Exploratory Data Analysis, the top 40% of the first 20
-    # candidates had a written score >= of 74; this determined the
-    # admission score for the oral exam
-    df = df[df["Written"] >= 74]
+    for col in ("Written", "Oral", "Combine"):
+        assert df[col].min() >= 0 and df[col].max() <= 100, str(col)
+        df = df.assign(**{col: df[col].div(100).round(2)})
 
-    df = pd.get_dummies(
-        df,
-        columns=["Race"],
+    written_pass_thr = max(
+        0.60,
+        df["Written"].iloc[: floor(df.shape[0] / 2)].quantile(0.40),
     )
+    selector = df["Written"] >= written_pass_thr
+    tmp_df = df.loc[~selector, :]
+    df = df.loc[selector, :]
+
+    tmp_df = tmp_df.loc[:, ["Race", "Position", "Written"]]
+
+    df = df.assign(y=lambda _df: _df["Combine"].ge(0.60).astype("boolean"))
+
+    df = pd.concat([df, tmp_df], axis=0)
+
+    df.loc[df["y"].isna(), "y"] = False
+
+    df = pd.get_dummies(df, columns=["Race", "Position"])
 
     return df

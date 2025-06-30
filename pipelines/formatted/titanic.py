@@ -47,7 +47,7 @@ def run_pipeline(args, tracker) -> None:
     tracker.analyze_changes(df)
 
     # Remove rows with missing values from the DataFrame
-    df = df.dropna()
+    df = df.dropna()  # sum(df["Age"].isna())==177, sum(df["Embarked"].isna())==2
     tracker.analyze_changes(df)
 
     # One-hot encode categorical variables and drop original columns
