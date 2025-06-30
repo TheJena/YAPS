@@ -12,6 +12,7 @@ services:
       - NEO4J_PLUGINS=["graph-data-science", "apoc"]
       - NEO4J_client_allow__telemetry=false
       - NEO4J_db_temporal_timezone=Europe/Rome
+      - NEO4J_dbms_memory_pagecache_size=4g
       - NEO4J_dbms_usage__report_enabled=false
       - NEO4J_initial_dbms_default__database=${MY_NEO4J_DB_NAME}
       - NEO4J_server_https_enabled=false
@@ -19,10 +20,12 @@ services:
       - NEO4J_server_logs_debug_enabled=false
       - NEO4J_server_logs_gc_enabled=true
       - NEO4J_server_logs_gc_rotation_keep__number=1
-      - NEO4J_server_logs_gc_rotation_size=128M
+      - NEO4J_server_logs_gc_rotation_size=128m
+      - NEO4J_server_memory_heap_max__size=8g
+      - NEO4J_server_memory_pagecache_size=4g
     ports:
-      - "7474:7474" # http
-      - "7687:7687" # bolt
+      - "127.0.0.1:7474:7474" # http
+      - "127.0.0.1:7687:7687" # bolt
     deploy:
       resources:
         limits:
@@ -39,7 +42,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     deploy:
       resources:
         limits:
@@ -54,17 +57,18 @@ volumes:
   neo4j_bkp:
     driver: local
     driver_opts:
+      device: ${MY_NEO4J_HOST_BKP_DIR}
       o: "bind,rw"
       type: none
-      device: ${MY_NEO4J_HOST_BKP_DIR}
   neo4j_data:
     driver: local
     driver_opts:
+      device: ${MY_NEO4J_HOST_DATA_DIR}
       o: "bind,rw"
       type: none
-      device: ${MY_NEO4J_HOST_DATA_DIR}
   ollama_data:
     driver: local
     driver_opts:
+      device: ${MY_OLLAMA_DATA_DIR}
       o: "bind,rw"
       type: none

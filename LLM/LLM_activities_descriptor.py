@@ -29,7 +29,7 @@ from logging import debug, info, warning
 from LLM.LLM_formatter import ChatLLM, Groq, Ollama
 from re import DOTALL, search
 from SECRET import black_magic  # from functools import lru_cache
-from textwrap import dedent
+from textwrap import dedent, indent
 from utils import black, parsed_args, yaml_dump
 
 
@@ -182,17 +182,34 @@ class LLM_activities_descriptor:
             else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
 
+        if io_obj is not None:
+            if isinstance(io_obj, str):
+                g = open(io_obj, "r")
+            else:
+                g = open(io_obj.name, "r")
         # cleaning pipeline in text format
         self.pipeline_content = black(
-            io_obj.read() if io_obj is not None else pipeline_content
+            g.read() if io_obj is not None else pipeline_content
         )
+        if io_obj is not None:
+            g.close()
 
     def descript(self, io_obj=None) -> str:
+        pipeline_code = "\n".join(
+            line.split("#")[0].rstrip()
+            # + str("  # fmt: skip" if "#" in line else "")  # remove comments
+            for line in self.pipeline_content.split("\n")
+        )
+        for nesting_level in range(1, 80 // 4):
+            for sequence_terminator in (")", "]", "}"):
+                pipeline_code = pipeline_code.replace(
+                    f",\n{' ' * 4 * nesting_level}{sequence_terminator}",
+                    sequence_terminator,
+                )
+        pipeline_code = black(pipeline_code)
+
         response = _descript_llm_invokation(
-            {
-                "pipeline_content": self.pipeline_content,
-            },
-            self.pipeline_content,
+            {"pipeline_content": pipeline_code}, self.pipeline_content
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
@@ -202,17 +219,42 @@ class LLM_activities_descriptor:
                 extracted_text.group(1)
                 .removeprefix("python\n")
                 .removeprefix("pipeline_")
+                .removeprefix("operations = ")
             )
             info(descr_to_write)
-            descr_to_write = black(descr_to_write).removeprefix(
-                "operations = "
-            )
+            descr_to_write = black(descr_to_write, __eval=True)
+
+            debug(f"{pipeline_code=}")
+            debug(f"{descr_to_write=}")
+            descr_to_write = {
+                pipeline_code.index(
+                    # activities are inside run_pipeline()
+                    indent(black(op_code), " " * 4)
+                ): dict(
+                    code=black(op_code).strip(),
+                    context=op_descr,
+                    function_name=op_name,
+                )
+                for op_name, (op_descr, op_code) in descr_to_write.items()
+            }
+
+            descr_to_write = [
+                activity_dict
+                | dict(
+                    code_line=len(pipeline_code[:code_offset].split("\n")),
+                    # with respect to black( pipeline code without comments )
+                )
+                for code_offset, activity_dict in sorted(
+                    descr_to_write.items(),
+                    key=lambda t: t[0],  # activity position in pipeline code
+                )
+            ]
 
             if io_obj is None:
                 io_obj = "described_activities.yaml"
 
             debug(f"{io_obj!r}")
-            yaml_dump(code=descr_to_write, io_obj=io_obj)
+            yaml_dump(data=descr_to_write, io_obj=io_obj)
 
             if io_obj == "described_activities.yaml":
                 info(f"Please move {io_obj!s} to its caching location!")

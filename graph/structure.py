@@ -74,6 +74,7 @@ def create_activity(
         "code_line": code_line,
         "context": context,
         "deleted_used_features": deleted_used_features,
+        "deleted_records": deleted_records,
         "description": description,
         "function_name": function_name,
         "generated_features": generated_features,

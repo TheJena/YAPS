@@ -62,12 +62,10 @@ class LLM_activities_used_columns:
             input_variables=["code", "description", "df_after", "df_before"],
             template=PIPELINE_STANDARDIZER_TEMPLATE,
         )
-
-        self.chat_llm = (
-            Ollama(self.prompt)
-            if parsed_args().use_ollama
-            else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
+
+        self.ollama_chat = Ollama(self.prompt)
+        self.groq_chat = Groq(self.prompt)
 
     def give_columns(self, df_before, df_after, code, description) -> str:
         debug(
@@ -102,4 +100,17 @@ def _give_columns_llm_invokation(context_dict):
         + PIPELINE_STANDARDIZER_TEMPLATE.format(**context_dict).strip()
         + f"\n{'#'*80}\n)"
     )
-    return LLM_activities_used_columns().chat_llm.invoke(context_dict)
+    failed = False
+    if parsed_args().use_groq:
+        try:
+            ret = LLM_activities_used_columns().groq_chat.invoke(context_dict)
+        except RuntimeWarning as e:
+            debug("Groq invocation failed")
+            debug(str(e))
+            failed = True
+        else:
+            return ret
+    if parsed_args().use_ollama or failed:
+        return LLM_activities_used_columns().ollama_chat.invoke(context_dict)
+    else:
+        return ChatLLM().invoke(context_dict)

@@ -30,8 +30,8 @@ from graph.structure import create_activity
 from LLM.LLM_activities_descriptor import LLM_activities_descriptor
 from LLM.LLM_formatter import LLM_formatter
 from logging import debug, info, INFO, warning, WARNING
-from os.path import abspath, lexists
 from os import remove, symlink
+from os.path import abspath, basename, getsize, isfile, lexists
 from SECRET import black_magic  # from functools import lru_cache
 from SECRET import MY_NEO4J_PASSWORD, MY_NEO4J_USERNAME
 from traceback import format_exception
@@ -116,19 +116,22 @@ def add_to_neo4j(
     neo4j.add_next_operations(pairs)
 
 
-def get_current_activities(activities_descr_dict, exception_text):
+def get_current_activities(
+    activities_descr_list, exception_text, activity_tracking=list()
+):
     """Create the activities found by the LLM"""
-    ret = list()
-    for act_name in activities_descr_dict.keys():
-        act_context, act_code = activities_descr_dict[act_name]
-        activity = create_activity(
-            function_name=act_name,
-            context=act_context,
-            code=act_code,
+
+    if not activity_tracking:
+        activity_tracking = [dict() for _ in activities_descr_list]
+    debug(f"{activity_tracking=}".replace("}, {", "},\n\n{"))
+    ret = [
+        create_activity(
             exception_text=exception_text,
+            **act_dict,
         )
-        ret.append(activity)
-    debug(f"current_activities={ret}")
+        for ith, act_dict in enumerate(activities_descr_list)
+    ]
+    debug(f"current_activities={ret}".replace("}, {", "},\n\n{"))
     return ret
 
 
@@ -144,24 +147,24 @@ def wrapper_run_pipeline(args, tracker):
         remove(pipeline_symlink)
     assert not lexists(pipeline_symlink), "check the above remove() on windows"
 
-    pipeline_path = abspath(parsed_args().formatted_pipeline.name)
+    pipeline_path = abspath(parsed_args().formatted_pipeline)
     symlink(pipeline_path, abspath(f"./{pipeline_symlink}"))
     importlib.reload(extracted_code)
 
     try:
         ret = extracted_code.run_pipeline(args, tracker)
+    except Exception as e:
+        raise e
+        debug("\n" + "".join(format_exception(e)))
+        ret = f"{type(e).__name__} - {e!s}", tracker.changes
+        warning(f"Eccezione catturata: {ret[0]}")
+    else:
         if parsed_args().output is not None:
             serialize(ret, parsed_args().output)
-        debug("detected foreign modules:\n" + "\n".join(foreign_modules()))
-    except Exception as e:
-        exception_type = type(e).__name__
-        exception_message = str(e)
-        warning(f"Eccezione catturata: {exception_type} - {exception_message}")
-        debug("\n" + "".join(format_exception(e)))
-        return f"{exception_type} - {exception_message}", tracker.changes
-    else:
         ret = " ", tracker.changes
-        return ret
+
+    debug("detected foreign modules:\n" + "\n".join(foreign_modules()))
+    return ret
 
 
 cli_args = parsed_args()
@@ -170,25 +173,36 @@ initialize_logging(
     level=INFO if not parsed_args().quiet else WARNING,
     debug_mode=parsed_args().verbose,
 )
+debug(f"{cli_args=}")
 
-if cli_args.formatted_pipeline is None:
+if (
+    cli_args.formatted_pipeline is None
+    or not isfile(cli_args.formatted_pipeline)
+    or getsize(cli_args.formatted_pipeline) == 0
+):
     # Standardize the structure of the file in a way that provenance
     # is tracked
-    formatter = LLM_formatter(cli_args.raw_pipeline)
-    # Standardized file given by the LLM
-    extracted_file = formatter.standardize(cli_args.formatted_pipeline)
+    formatter = LLM_formatter(cli_args.raw_pipeline)  # input == raw_pipeline
+
+    extracted_file = formatter.standardize(
+        cli_args.formatted_pipeline  # output == formatted_pipeline
+    )
 else:
     extracted_file = cli_args.formatted_pipeline
 
-if cli_args.pipeline_description is None:
+if (
+    cli_args.pipeline_description is None
+    or not isfile(cli_args.pipeline_description)
+    or getsize(cli_args.pipeline_description) == 0
+):
     descriptor = LLM_activities_descriptor(extracted_file)
 
     # description of each activity. A list of dictionaries like {
     # "act_name" : ("description of the operation", "code of the
     # operation")}
-    activities_descr_dict = descriptor.descript(cli_args.pipeline_description)
+    activities_descr_list = descriptor.descript(cli_args.pipeline_description)
 else:
-    activities_descr_dict = yaml_load(cli_args.pipeline_description)
+    activities_descr_list = yaml_load(cli_args.pipeline_description)
 
 
 # Neo4j initialization
@@ -197,18 +211,35 @@ neo4j = Neo4jFactory.create_neo4j_queries(
 )
 neo4j.delete_all()
 session = Neo4jConnector().create_session()
-tracker = ProvenanceTracker(save_on_neo4j=True)
+
+pipeline_name = f"{basename(cli_args.dataset.name).split('.')[0]}__" + str(
+    "original"
+    if "raw" in cli_args.dataset.name
+    else str(
+        "perturbed"
+        if "perturbed" in cli_args.dataset.name
+        else RuntimeError("Could not auto-detect pipeline name")
+    )
+)
+debug(f"{pipeline_name=}")
+
+tracker = ProvenanceTracker(
+    save_on_neo4j=True,
+)
 
 # running the preprocessing pipeline
 exception, changes = wrapper_run_pipeline(cli_args, tracker)
 
-# Dictionary of all the df before and after the operations
-debug(f"changes={changes!r}")
-
+if not changes:  # dict of all the dfs before/after operations
+    warning(
+        "NO CHANGE DETECTED!!!"
+    )
+else:
+    debug(f"changes={changes!r}")
 
 try:
     current_activities = get_current_activities(
-        activities_descr_dict, exception
+        activities_descr_list, exception
     )
 
     (

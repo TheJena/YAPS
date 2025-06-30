@@ -24,6 +24,7 @@
 # You should have received a copy of the GNU General Public License
 # along with YAPS.  If not, see <https://www.gnu.org/licenses/>.
 
+from groq import APIStatusError
 from httpx import ConnectError
 from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
@@ -32,12 +33,13 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from langchain_ollama.chat_models import ChatOllama
 from logging import debug, info, warning
-from os.path import abspath
+from os.path import abspath, getsize, isfile
 from re import DOTALL, search
 from SECRET import black_magic  # from functools import lru_cache
 from SECRET import MY_API_KEY
 from textwrap import dedent
-from utils import black, parsed_args, set_formatted_pipeline_path
+from traceback import format_exception
+from utils import black, parsed_args
 
 
 class ChatLLM(object):
@@ -59,28 +61,32 @@ class Groq(ChatLLM):
             model_name=model_name,
             temperature=temperature,
         )
-        self.chat_chain = LLMChain(
-            llm=self.chat,
-            prompt=self.prompt,
-            verbose=False,
-        )
+        self.parser = StrOutputParser()
+        self.chain = self.prompt | self.chat | self.parser
 
     def invoke(self, runnable_input):
-        response = self.chat_chain.invoke(runnable_input)
-        return response["text"]
+        try:
+            return self.chain.invoke(runnable_input)
+        except APIStatusError as e:
+            warning(format_exception(e))
+            raise RuntimeWarning("Groq failed, have a look at the logs")
 
 
 class Ollama(ChatLLM):
     def __init__(
         self,
         prompt,
+        context_windows_size=parsed_args().num_ctx,
+        keep_alive=parsed_args().keep_alive,
         model=parsed_args().llm_name,
     ):
         self.prompt = prompt
         self.chat = ChatOllama(
             # be aware that adding parameters here will probably
             # invalidate
+            keep_alive=keep_alive,
             model=model,
+            num_ctx=context_windows_size,
         )
         self.parser = StrOutputParser()
 
@@ -108,7 +114,7 @@ class Ollama(ChatLLM):
 
 
 class LLM_formatter:
-    def __init__(self, io_obj):
+    def __init__(self, input_file_object):
         # Template per descrivere il grafo e suggerire miglioramenti
         # alla pipeline di pulizia dei dati
         PIPELINE_FORMATTER_TEMPLATE = (
@@ -210,16 +216,20 @@ class LLM_formatter:
             else (Groq(self.prompt) if parsed_args().use_groq else ChatLLM())
         )
 
-        # cleaning pipeline in text format
-        self.pipeline_content = black(io_obj.read())
+        self.pipeline_content = "\n".join(
+            line.split("#")[0].rstrip()
+            + str("  # fmt: skip" if "#" in line else "")  # strip comments
+            for line in black(input_file_object.read()).split("\n")
+        )
+        self.__raw_pipeline_path = abspath(input_file_object.name)
 
-    def standardize(self, io_obj=None) -> str:
+    def standardize(self, output_path) -> str:
         response = _standardize_llm_invokation(
             {
                 "pipeline_content": self.pipeline_content,
                 "question": "Description and Suggestions:",
             },
-            io_obj=io_obj,
+            input_path=open(self.__raw_pipeline_path),
         )
         # Use regular expression to find text between triple quotes
         extracted_text = search("```(.*?)```", response, DOTALL)
@@ -227,32 +237,23 @@ class LLM_formatter:
         if extracted_text:
             # Get the matched group from the search
             code_to_write = extracted_text.group(1).removeprefix("python\n")
-
             debug(code_to_write)
-            code_to_write = black(code_to_write)
 
-            if io_obj is None:
-                set_formatted_pipeline_path("extracted_code.py")
-                io_obj = open("extracted_code.py", "w")
+            with open(output_path, "w") as f:
+                f.write(black(code_to_write))
 
-            if io_obj.seekable:
-                io_obj.seek(0)  # truncate file
-            io_obj.write(code_to_write)
-            io_obj.close()
-
-            debug(
-                f"Code has been successfully written to {abspath(io_obj.name)}"
-            )
-            return str(abspath(io_obj.name))
+            output_path = abspath(output_path)
+            debug(f"Code has been successfully written to {output_path}")
+            return str(output_path)
         else:
             warning("No triple-quoted text found.")
 
 
 @black_magic
-def _standardize_llm_invokation(context_dict, io_obj):
+def _standardize_llm_invokation(context_dict, input_path):
     debug(
         f"{_standardize_llm_invokation.__name__}(context_dict=\n{'#'*80}\n"
         + PIPELINE_FORMATTER_TEMPLATE.format(**context_dict)
         + f"\n{'#'*80}\n)"
     )
-    return LLM_formatter(io_obj).chat_llm.invoke(context_dict)
+    return LLM_formatter(input_path).chat_llm.invoke(context_dict)

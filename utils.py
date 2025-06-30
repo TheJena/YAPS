@@ -31,7 +31,9 @@ from argparse import (
     Namespace,
 )
 from black import __path__ as BLACK_PATH, __version__ as BLACK_VERSION
+from collections import defaultdict
 from datetime import datetime
+from itertools import chain
 from logging import (
     DEBUG,
     Formatter,
@@ -44,13 +46,17 @@ from logging import (
     info,
     warning,
 )
+from os import makedirs
 from os.path import abspath, join as join_path, isdir, isfile
+from queue import Queue as FIFO
 from SECRET import black_magic  # from functools import lru_cache
 from subprocess import check_output
 from tempfile import NamedTemporaryFile
 from textwrap import dedent, fill, indent
+from time import time
 import gzip
 import logging
+import pandas as pd
 import pickle
 import random
 import yaml
@@ -139,7 +145,7 @@ def black(pycode, line_length=79, target_version="py312"):
     assert int(BLACK_VERSION.split(".")[0]) >= 24, f"{BLACK_VERSION=}"
 
     try:
-        return check_output(
+        ret = check_output(
             [
                 "black",
                 "--code",
@@ -154,6 +160,12 @@ def black(pycode, line_length=79, target_version="py312"):
     except Exception as e:
         warning(f"Black failed ({e!s})\n\n{pycode!s}")
         return pycode
+    else:
+        if kwargs.pop("__eval", False):
+            return i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
+                ret
+            )
+    return ret
 
 
 def foreign_modules():
@@ -235,7 +247,13 @@ def initialize_logging(suffix_filename, level=INFO, debug_mode=False):
 def i_do_completely_trust_llms_thus_i_will_evaluate_their_code_on_my_machine(
     *args, **kwargs
 ):
-    raise NotImplementedError()
+    for i, a in enumerate(args):
+        warning(f"{i:02d}-th\t\t{a!r}")
+    for k, v in sorted(kwargs.items(), key=lambda t: t[0].lower()):
+        warning(f"{k:<32}\t\t{v!r}")
+    raise NotImplementedError(
+        r"""return eval(*args, **kwargs)"""
+    )
 
 
 def keep_random_element_in_place(lst):
@@ -322,7 +340,7 @@ def parsed_args() -> Namespace:
         dest="formatted_pipeline",
         help="LLM_formatter($raw_pipeline)",
         metavar="file.py",
-        type=FileType("r+"),
+        type=str,
     )
     parser.add_argument(
         "-d",
@@ -330,7 +348,7 @@ def parsed_args() -> Namespace:
         dest="pipeline_description",
         help="LLM_activities_descriptor(LLM_formatter($raw_pipeline))",
         metavar="file.yaml",
-        type=FileType("r+"),
+        type=str,
     )
     parser.add_argument(
         "-o",
@@ -349,10 +367,28 @@ def parsed_args() -> Namespace:
         help="model name, e.g., llama3-70b-8192",
         type=str,
     )
+    parser.add_argument(
+        "-k",
+        "--keep-alive",
+        default="6h",
+        dest="keep_alive",
+        help="how long the model will stay loaded into memory",
+        type=str,
+    )
+    parser.add_argument(
+        "-x",
+        "--num-ctx",
+        default=8192,
+        dest="num_ctx",
+        help="size of the context window used to generate the next token",
+        type=int,
+    )
     llm_backend = parser.add_mutually_exclusive_group(required=True)
     llm_backend.add_argument("--groq", action="store_true", dest="use_groq")
     llm_backend.add_argument(
-        "--ollama", action="store_true", dest="use_ollama"
+        "--ollama",
+        action="store_true",
+        dest="use_ollama",
     )
 
     parser.add_argument(
@@ -401,6 +437,10 @@ def parsed_args() -> Namespace:
     )
 
     _PARSE_ARGS = parser.parse_args()
+    for attr in ("formatted_pipeline", "pipeline_description"):
+        path = getattr(_PARSE_ARGS, attr)
+        if path is not None:
+            setattr(_PARSE_ARGS, attr, abspath(path))
     return _PARSE_ARGS
 
 
@@ -425,7 +465,7 @@ def serialize(data, io_obj):
             :,
             sorted(data.columns, key=str.lower),
         ].sort_index().to_csv(
-            io_obj if "stdout" in io_obj.name else io_obj.name
+            io_obj if "stdout" in io_obj.name else io_obj.name,
         )
     elif (
         io_obj.name.endswith(".xlsx")
@@ -448,16 +488,12 @@ def serialize(data, io_obj):
                 )
                 if io_obj.name.endswith(".gz")
                 else open(
-                    ".".join(io_obj.name.split(".")[:-1] + ["pkl"]), "wb"
+                    ".".join(io_obj.name.split(".")[:-1] + ["pkl"]),
+                    "wb",
                 )
             ),
         )
     debug(f"serialized data to {io_obj!r}")
-
-
-def set_formatted_pipeline_path(path):
-    global _PARSE_ARGS
-    _PARSE_ARGS.formatted_pipeline = abspath(path)
 
 
 def yaml_dump(code=None, data=None, io_obj=None):
@@ -481,4 +517,8 @@ def yaml_dump(code=None, data=None, io_obj=None):
 
 
 def yaml_load(io_obj):
+    debug(f"{io_obj=}")
+    if isinstance(io_obj, str):
+        assert io_obj.endswith(".yaml"), repr(io_obj)
+        io_obj = open(io_obj, "r")
     return yaml.load(io_obj, Loader=SafeLoader)

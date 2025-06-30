@@ -14,7 +14,7 @@ PIPELINE_FILES := $(shell						\
 	| tr -s '\n' ' '						\
 )
 
-.PHONY: black-inplace black-view clean env init mypy neo4j-dump neo4j-load ollama-pull ollama-run patches upgrade
+.PHONY: black-inplace black-view clean edit edit-pipelines env init mypy neo4j-dump neo4j-load ollama-pull ollama-run patches upgrade
 
 # Lets not argue about code style :D
 # https://github.com/psf/black#the-uncompromising-code-formatter
@@ -36,6 +36,12 @@ clean:
 	find . -type f -iname "*~"          -exec rm   -fv {} \;
 	find . -type f -iname "*.pyc"       -exec rm   -fv {} \;
 	find . -type d -iname "__pycache__" -exec rmdir -v {} \;
+
+edit:
+	emacs -nw $(PY_FILES)
+
+edit-pipelines:
+	emacs -nw $(PIPELINE_FILES)
 
 env:
 	@cat docker-compose/.env		\
@@ -134,5 +140,5 @@ upgrade:
 	pip 	--disable-pip-version-check list			\
 		--outdated						\
 		--format=json						\
-	| python -c "import json, sys; print('\n'.join(sorted(x['name'] for x in json.load(sys.stdin), key=str.lower)))" \
+	| python -c "import json, sys; print('\n'.join(sorted((x['name'] for x in json.load(sys.stdin)), key=str.lower)))" \
 	| xargs -n1 pip install -U

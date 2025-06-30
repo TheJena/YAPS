@@ -4,9 +4,12 @@ langchain_community
 langchain_groq
 langchain_ollama
 matplotlib
+menelaus
 mypy
 neo4j
 pandas
+plotly
 pyyaml
 scikit-learn
 seaborn
+tabulate
