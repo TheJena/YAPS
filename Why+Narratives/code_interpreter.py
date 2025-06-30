@@ -34,7 +34,7 @@ class ChatBot(object):
         self,
         api_key: str,
         temperature: float = 0.2,
-        model_name: str = "llama3-70b-8192",
+        model_name: str = "llama-3.3-70b-versatile",
     ):
         self.chat = ChatGroq(
             temperature=temperature,

@@ -66,10 +66,10 @@ To use the provenance suite, follow these steps:
    main memory
 
    _Optionally_, pull from the [library](https://ollama.com/library)
-   the LLM of choice, e.g., Llama v3.1 with 70B parameters will use
+   the LLM of choice, e.g., Llama v3.3 with 70B parameters will use
    about 41GB of RAM
 
-   `docker exec --interactive --tty ollama ollama pull llama3.1:70b`
+   `docker exec --interactive --tty ollama ollama pull llama3.3:70b`
 
 1. Run the provided example:
 

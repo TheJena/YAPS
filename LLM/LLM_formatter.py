@@ -85,7 +85,11 @@ class Ollama(ChatLLM):
             # be aware that adding parameters here will probably
             # invalidate
             keep_alive=keep_alive,
-            model=model,
+            model={
+                # groq2ollama mapping
+                "llama-3.3-70b-versatile": "llama3.3:70b",
+                "llama3-70b-8192": "llama3.1:70b",
+            }.get(model, model),
             num_ctx=context_windows_size,
         )
         self.parser = StrOutputParser()

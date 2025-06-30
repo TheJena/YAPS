@@ -362,9 +362,9 @@ def parsed_args() -> Namespace:
     parser.add_argument(
         "-m",
         "--model",
-        default="llama3.1:70b",
+        default="llama3.3:70b",
         dest="llm_name",
-        help="model name, e.g., llama3-70b-8192",
+        help="model name, e.g., llama-3.3-70b-versatile",
         type=str,
     )
     parser.add_argument(

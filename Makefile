@@ -1,6 +1,6 @@
 BKP_NAME ?= /dev/null
 LLM_ALIVE ?= 6h
-LLM_NAME ?= "llama3.1:70b"
+LLM_NAME ?= "llama3.3:70b"
 
 PY_FILES := $(shell							\
 	find . -iname '*.py' ! -ipath '*/pipelines/*'			\
